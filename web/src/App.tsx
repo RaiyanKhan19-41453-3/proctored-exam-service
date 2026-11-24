@@ -171,7 +171,7 @@ export default function App() {
             method: 'POST', headers: headers(),
             body: JSON.stringify({ kind: 0, contentType: 'image/jpeg', sizeBytes: blob.size, detailJson: null, checksum: null, dataBase64: base64 }),
           }).catch(() => void report(EV.Disconnected, SEV.Medium));
-        } catch { /* ignore */ }
+        } catch { void report(EV.Disconnected, SEV.Medium); }
       }, 'image/jpeg', 0.6);
     };
     const timer = window.setInterval(() => void captureFrame(), 20000);
@@ -190,7 +190,7 @@ export default function App() {
               method: 'POST', headers: headers(),
               body: JSON.stringify({ kind: 2, contentType: 'audio/webm', sizeBytes: blob.size, detailJson: null, checksum: null, dataBase64: base64 }),
             }).catch(() => {});
-          } catch { /* ignore */ }
+          } catch { void report(EV.Disconnected, SEV.Medium); }
           chunks.length = 0;
         };
         const audioTimer = window.setInterval(() => recorder.state === 'inactive' && recorder.start(), 15000);
