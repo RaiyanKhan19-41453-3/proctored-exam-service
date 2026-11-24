@@ -2,6 +2,7 @@ using ExamService.Application.Common;
 using ExamService.Application.Features.Reports;
 using Hangfire;
 using ExamService.Domain.Common;
+using ExamService.Application.Features.Sessions;
 using ExamService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,4 +35,15 @@ public sealed class ReportWorker(IServiceScopeFactory scopes, ILogger<ReportWork
 public sealed class AppDbContextShim(Infrastructure.Persistence.AppDbContext context)
 {
     public Infrastructure.Persistence.AppDbContext Context => context;
+}
+
+public sealed class DeadlineWorker(IServiceScopeFactory scopes, ILogger<DeadlineWorker> logger)
+{
+    public async Task ExpireAsync()
+    {
+        using var scope = scopes.CreateScope();
+        var sender = scope.ServiceProvider.GetRequiredService<MediatR.ISender>();
+        var count = await sender.Send(new ExpireAttempts());
+        if (count > 0) logger.LogInformation("Auto-submitted {Count} expired attempts", count);
+    }
 }

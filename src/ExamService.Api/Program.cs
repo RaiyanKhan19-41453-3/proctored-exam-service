@@ -1,8 +1,10 @@
 using CoachingPlatform.Shared;
 using ExamService.Api;
 using ExamService.Application;
+using ExamService.Application.Features.Identity;
 using ExamService.Application.Common;
 using ExamService.Infrastructure.Ai;
+using ExamService.Application.Features.Sessions;
 using ExamService.Infrastructure.Persistence;
 using ExamService.Infrastructure.Storage;
 using Hangfire;
@@ -35,6 +37,7 @@ builder.Services.AddSingleton<IObjectStorage>(new MinioStorage(
     builder.Configuration["Minio:PublicEndpoint"] ?? "http://localhost:9010"));
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IAiEvaluator, AiEvaluator>();
+builder.Services.AddSingleton<IEvidenceAnalyzer, EvidenceAnalyzer>();
 
 builder.Services.AddHealthChecks().AddCheck<DbHealthCheck>("db", tags: ["ready"]);
 builder.Services.AddSingleton(new DbHealthCheck(connection));
@@ -74,5 +77,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 var recurring = app.Services.GetRequiredService<IRecurringJobManager>();
+recurring.AddOrUpdate<DeadlineWorker>("expire-attempts", w => w.ExpireAsync(), "*/1 * * * * *");
 recurring.AddOrUpdate<ReportWorker>("generate-reports", w => w.GeneratePendingAsync(), "*/1 * * * *");
 app.Run();

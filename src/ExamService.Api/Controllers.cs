@@ -40,7 +40,7 @@ public sealed class AttemptsController(IAttemptService attempts) : ControllerBas
 {
     [HttpPost]
     public async Task<IActionResult> Start([FromQuery] Guid examId,
-        [FromBody] StartAttemptRequest request, CancellationToken ct)
+        [FromBody] AttemptTokenRequest request, CancellationToken ct)
         => Ok(new { attemptId = await attempts.StartAsync(examId, request, ct) });
 
     [HttpPost("{id:guid}/answers")]
@@ -97,4 +97,48 @@ public sealed class HealthController : ControllerBase
 {
     [HttpGet]
     public IActionResult Get() => Ok(new { service = "proctored-exam-service", status = "running" });
+}
+
+[ApiController]
+[Route("api/candidates")]
+[Authorize]
+[Produces("application/json")]
+public sealed class CandidatesController(IIdentityService identity) : ControllerBase
+{
+    [HttpPost("assign")]
+    public async Task<IActionResult> Assign([FromBody] ExamService.Application.Features.Identity.CreateAssignment request, CancellationToken ct)
+        => Ok(await identity.AssignAsync(request, ct));
+
+    [HttpPost("consent")]
+    public async Task<IActionResult> Consent([FromQuery] Guid assignmentId, [FromQuery] bool accepted,
+        CancellationToken ct)
+        => Ok(new { accepted = await identity.AcceptConsentAsync(assignmentId, accepted,
+            HttpContext.Connection.RemoteIpAddress?.ToString(), ct) });
+
+    [HttpPost("verify")]
+    public async Task<IActionResult> Verify([FromQuery] Guid assignmentId, [FromBody] byte[] selfie, CancellationToken ct)
+        => Ok(await identity.VerifyAsync(assignmentId, selfie, ct));
+}
+
+[ApiController]
+[Route("api/evidence")]
+[Authorize]
+[Produces("application/json")]
+public sealed class EvidenceController(MediatR.ISender sender) : ControllerBase
+{
+    [HttpPost("attempts/{attemptId:guid}")]
+    public async Task<IActionResult> Store([FromRoute] Guid attemptId,
+        [FromBody] ExamService.Application.DTOs.StoreEvidenceRequest request,
+        [FromQuery] byte[] data, CancellationToken ct)
+        => Ok(new { evidenceId = await sender.Send(new ExamService.Application.Features.Evidence.StoreEvidence(
+            attemptId, request, data), ct) });
+
+    [HttpGet("attempts/{attemptId:guid}")]
+    public async Task<IActionResult> List([FromRoute] Guid attemptId,
+        [FromQuery] ExamService.Domain.Common.EvidenceKind? kind, CancellationToken ct)
+        => Ok(await sender.Send(new ExamService.Application.Features.Evidence.ListEvidence(attemptId, kind), ct));
+
+    [HttpGet("{id:guid}/url")]
+    public async Task<IActionResult> GetUrl([FromRoute] Guid id, CancellationToken ct)
+        => Ok(new { url = await sender.Send(new ExamService.Application.Features.Evidence.GetEvidenceUrl(id), ct) });
 }

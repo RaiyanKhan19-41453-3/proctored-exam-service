@@ -19,6 +19,9 @@ export default function App() {
   const [examId, setExamId] = useState('');
   const [exam, setExam] = useState<Exam | null>(null);
   const [attemptId, setAttemptId] = useState('');
+  const [attemptToken, setAttemptToken] = useState('');
+  const [assignmentId, setAssignmentId] = useState('');
+  const [candidateId] = useState(() => localStorage.getItem('exam-candidate') ?? crypto.randomUUID());
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [reports, setReports] = useState<Report[]>([]);
   const [error, setError] = useState('');
@@ -87,17 +90,18 @@ export default function App() {
   async function begin() {
     setError('');
     try {
-      const candidateId = crypto.randomUUID();
+      localStorage.setItem('exam-candidate', candidateId);
+      await fetch(`${API}/candidates/consent?assignmentId=${assignmentId}&accepted=true`, { method: 'POST', headers: headers() });
       const r = await fetch(`${API}/attempts?examId=${examId}`, {
-        method: 'POST', headers: headers(),
-        body: JSON.stringify({ candidateId, candidateName: 'Candidate ' + candidateId.slice(0, 6) }),
+        method: 'POST', headers: headers(), body: JSON.stringify({ token: attemptToken }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json() as { attemptId: string };
       setAttemptId(data.attemptId);
 
+      let stream: MediaStream | null = null;
       if (exam?.requireCamera || exam?.requireMicrophone) {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
           video: exam.requireCamera, audio: exam.requireMicrophone,
         });
         streamRef.current = stream;
@@ -110,6 +114,7 @@ export default function App() {
         });
       }
       await document.documentElement.requestFullscreen().catch(() => void report(EV.FullscreenExit, SEV.High));
+      startEvidenceCapture(data.attemptId, stream ?? new MediaStream());
     } catch (e) { setError(String(e)); }
   }
 
@@ -120,6 +125,31 @@ export default function App() {
       method: 'POST', headers: headers(),
       body: JSON.stringify({ questionId, responseJson: JSON.stringify({ value }) }),
     }).catch(() => void report(EV.Disconnected, SEV.Medium));
+  }
+
+  function startEvidenceCapture(id: string, stream: MediaStream) {
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    const captureFrame = async () => {
+      if (!video || !video.videoWidth) return;
+      canvas.width = 320; canvas.height = 240;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(async blob => {
+        if (!blob) return;
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        try {
+          await fetch(`${API}/evidence/attempts/${id}?data=${encodeURIComponent(btoa(String.fromCharCode(...bytes.slice(0, 50000))))}`, {
+            method: 'POST', headers: headers(),
+            body: JSON.stringify({ kind: 0, contentType: 'image/jpeg', sizeBytes: bytes.length, detailJson: null, checksum: null }),
+          }).catch(() => void report(EV.Disconnected, SEV.Medium));
+        } catch { /* ignore */ }
+      }, 'image/jpeg', 0.6);
+    };
+    const timer = window.setInterval(() => void captureFrame(), 20000);
+    void captureFrame();
+    stream.getTracks().forEach(t => t.addEventListener('ended', () => window.clearInterval(timer)));
   }
 
   async function submit() {
@@ -152,6 +182,8 @@ export default function App() {
           <section className="card">
             <h2>Exam</h2>
             <input value={examId} onChange={e => setExamId(e.target.value)} placeholder="Exam ID" />
+            <input value={attemptToken} onChange={e => setAttemptToken(e.target.value)} placeholder="Attempt token (from examiner)" />
+            <input value={assignmentId} onChange={e => setAssignmentId(e.target.value)} placeholder="Assignment ID" />
             <button onClick={loadExam}>Load</button>
             <button onClick={() => void loadReports()}>Reports</button>
           </section>

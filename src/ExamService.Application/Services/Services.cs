@@ -1,6 +1,8 @@
 using ExamService.Application.Common;
 using ExamService.Application.DTOs;
+using ExamService.Application.Features.Evidence;
 using ExamService.Application.Features.Exams;
+using ExamService.Application.Features.Identity;
 using ExamService.Application.Features.Reports;
 using ExamService.Application.Features.Sessions;
 using MediatR;
@@ -17,7 +19,7 @@ public interface IExamService
 
 public interface IAttemptService
 {
-    Task<Guid> StartAsync(Guid examId, StartAttemptRequest request, CancellationToken ct = default);
+    Task<Guid> StartAsync(Guid examId, AttemptTokenRequest request, CancellationToken ct = default);
     Task<bool> SaveAnswerAsync(Guid attemptId, SaveAnswerRequest request, CancellationToken ct = default);
     Task<Guid> SubmitAsync(Guid attemptId, CancellationToken ct = default);
     Task<bool> RecordEventAsync(Guid attemptId, ProctorEventRequest request, CancellationToken ct = default);
@@ -54,8 +56,8 @@ public sealed class ExamService(ISender sender) : IExamService
 
 public sealed class AttemptService(ISender sender, IObjectStorage storage, ITenantContext tenant) : IAttemptService
 {
-    public Task<Guid> StartAsync(Guid examId, StartAttemptRequest r, CancellationToken ct)
-        => sender.Send(new StartAttempt(examId, r.CandidateId, r.CandidateName), ct);
+    public Task<Guid> StartAsync(Guid examId, AttemptTokenRequest r, CancellationToken ct)
+        => sender.Send(new StartAttempt(examId, r.Token), ct);
     public Task<bool> SaveAnswerAsync(Guid attemptId, SaveAnswerRequest r, CancellationToken ct)
         => sender.Send(new SaveAnswer(attemptId, r.QuestionId, r.ResponseJson), ct);
     public Task<Guid> SubmitAsync(Guid attemptId, CancellationToken ct)
@@ -89,4 +91,31 @@ public sealed class ReportService(ISender sender) : IReportService
     }
     public Task<bool> ReviewAsync(Guid reportId, ReviewReportRequest r, CancellationToken ct)
         => sender.Send(new ReviewReport(reportId, r.Decision, r.Notes, r.Reviewer), ct);
+}
+
+public interface IIdentityService
+{
+    Task<AssignmentResponse> AssignAsync(CreateAssignment request, CancellationToken ct = default);
+    Task<bool> AcceptConsentAsync(Guid assignmentId, bool accepted, string? ip, CancellationToken ct = default);
+    Task<IdentityVerificationDto> VerifyAsync(Guid assignmentId, byte[] selfie, CancellationToken ct = default);
+}
+
+public interface IEvidenceService
+{
+    Task<Guid> StoreAsync(Guid attemptId, StoreEvidenceRequest request, byte[] data, CancellationToken ct = default);
+}
+
+public sealed class IdentityService(ISender sender) : IIdentityService
+{
+    public Task<AssignmentResponse> AssignAsync(CreateAssignment r, CancellationToken ct) => sender.Send(r, ct);
+    public Task<bool> AcceptConsentAsync(Guid id, bool accepted, string? ip, CancellationToken ct)
+        => sender.Send(new AcceptConsent(id, accepted, ip), ct);
+    public Task<IdentityVerificationDto> VerifyAsync(Guid id, byte[] selfie, CancellationToken ct)
+        => sender.Send(new VerifyIdentity(id, selfie), ct);
+}
+
+public sealed class EvidenceService(ISender sender) : IEvidenceService
+{
+    public Task<Guid> StoreAsync(Guid attemptId, StoreEvidenceRequest r, byte[] data, CancellationToken ct)
+        => sender.Send(new StoreEvidence(attemptId, r, data), ct);
 }

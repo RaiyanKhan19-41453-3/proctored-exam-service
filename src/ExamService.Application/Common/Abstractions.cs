@@ -17,6 +17,12 @@ public interface ITenantContext
 
 public interface IRequiresTenant;
 
+public sealed class AppException : Exception
+{
+    public AppException(string message, int status = 400) : base(message) { Status = status; }
+    public int Status { get; }
+}
+
 public interface IObjectStorage
 {
     Task<string> PresignUploadAsync(string key, string contentType, TimeSpan expiry, CancellationToken ct = default);

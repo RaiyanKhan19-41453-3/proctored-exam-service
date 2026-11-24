@@ -23,6 +23,8 @@ public sealed class AppDbContext : DbContext, IAppDbContext
     public DbSet<Recording> Recordings => Set<Recording>();
     public DbSet<EvaluationReport> Reports => Set<EvaluationReport>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<ExamAssignment> Assignments => Set<ExamAssignment>();
+    public DbSet<Evidence> Evidence => Set<Evidence>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

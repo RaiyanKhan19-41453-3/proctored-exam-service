@@ -4,11 +4,12 @@ using ExamService.Domain.Common;
 using ExamService.Domain.Entities;
 using FluentValidation;
 using MediatR;
+using ExamService.Application.Features.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace ExamService.Application.Features.Sessions;
 
-public sealed record StartAttempt(Guid ExamId, Guid CandidateId, string CandidateName)
+public sealed record StartAttempt(Guid ExamId, string AttemptToken, string? IpAddress = null)
     : IRequest<Guid>, IRequiresTenant;
 
 public sealed class StartAttemptValidator : AbstractValidator<StartAttempt>
@@ -16,8 +17,7 @@ public sealed class StartAttemptValidator : AbstractValidator<StartAttempt>
     public StartAttemptValidator()
     {
         RuleFor(x => x.ExamId).NotEmpty();
-        RuleFor(x => x.CandidateId).NotEmpty();
-        RuleFor(x => x.CandidateName).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.AttemptToken).NotEmpty();
     }
 }
 
@@ -28,12 +28,26 @@ public sealed class StartAttemptHandler(IAppDbContext db, ITenantContext current
         var exam = await db.Set<Exam>().FirstOrDefaultAsync(e => e.Id == request.ExamId, ct)
                    ?? throw new KeyNotFoundException("Exam not found.");
         if (exam.Status != ExamStatus.Published) throw new InvalidOperationException("Exam is not live.");
+
+        // Identity binding: the token is issued server-side to one assigned candidate.
+        var tokenHash = Identity.CreateAssignmentHandler.Hash(request.AttemptToken);
+        var assignment = await db.Set<ExamAssignment>().FirstOrDefaultAsync(a =>
+            a.ExamId == exam.Id && a.AttemptTokenHash == tokenHash, ct)
+            ?? throw new UnauthorizedAccessException("Invalid attempt token.");
+        if (assignment.TokenExpiresAt <= DateTimeOffset.UtcNow)
+            throw new UnauthorizedAccessException("Attempt token has expired.");
+        if (assignment.Status == AssignmentStatus.Revoked)
+            throw new UnauthorizedAccessException("Assignment has been revoked.");
+        if (assignment.Consent != ConsentStatus.Accepted)
+            throw new InvalidOperationException("Consent must be accepted before starting.");
+        if (assignment.IdentityVerifiedAt is null && exam.RequireCamera)
+            throw new InvalidOperationException("Identity must be verified before starting.");
         var now = DateTimeOffset.UtcNow;
         if (exam.StartUtc.HasValue && now < exam.StartUtc.Value) throw new InvalidOperationException("Exam has not started.");
         if (exam.EndUtc.HasValue && now > exam.EndUtc.Value) throw new InvalidOperationException("Exam has ended.");
 
         var existing = await db.Set<ExamAttempt>().FirstOrDefaultAsync(a =>
-            a.ExamId == exam.Id && a.CandidateId == request.CandidateId &&
+            a.ExamId == exam.Id && a.CandidateId == assignment.CandidateId &&
             a.Status == AttemptStatus.InProgress, ct);
         if (existing is not null) return existing.Id;
 
@@ -41,14 +55,14 @@ public sealed class StartAttemptHandler(IAppDbContext db, ITenantContext current
             .Select(q => new { q.Id, q.Marks }).ToListAsync(ct);
         var attempt = new ExamAttempt
         {
-            TenantId = current.TenantId, ExamId = exam.Id, CandidateId = request.CandidateId,
-            CandidateName = request.CandidateName, StartedAt = now, MaxScore = questions.Sum(q => q.Marks)
+            TenantId = current.TenantId, ExamId = exam.Id, CandidateId = assignment.CandidateId,
+            CandidateName = assignment.CandidateName, StartedAt = now, MaxScore = questions.Sum(q => q.Marks)
         };
         db.Set<ExamAttempt>().Add(attempt);
         db.Set<OutboxMessage>().Add(new OutboxMessage
         {
             TenantId = current.TenantId, EventType = EventTypes.AttemptStarted,
-            PayloadJson = JsonSerializer.Serialize(new { AttemptId = attempt.Id, ExamId = exam.Id, request.CandidateId }),
+            PayloadJson = JsonSerializer.Serialize(new { AttemptId = attempt.Id, ExamId = exam.Id, CandidateId = assignment.CandidateId }),
             OccurredAt = now
         });
         await db.SaveChangesAsync(ct);

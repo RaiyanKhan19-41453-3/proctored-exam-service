@@ -66,6 +66,9 @@ public abstract class ExamTestBase(DbFixture fixture) : IAsyncLifetime
         services.AddSingleton<ITenantContext>(Tenant);
         services.AddSingleton<IObjectStorage, NoopStorage>();
         services.AddSingleton<IAiEvaluator>(new AiEvaluator(config, new HttpClient()));
+        services.AddSingleton<IEvidenceAnalyzer>(new EvidenceAnalyzer(config, new HttpClient()));
+        services.AddSingleton(config);
+        services.AddSingleton<HttpClient>();
         services.AddScoped(sp => new AppDbContext(
             new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(fixture.Connection).Options, Tenant));
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());

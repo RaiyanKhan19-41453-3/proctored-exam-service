@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using ExamService.Application.Common;
 using ExamService.Infrastructure.Persistence;
 
+using ExamService.Application.Common;
+
 namespace ExamService.Api;
 
 public sealed class HttpTenantContext(IHttpContextAccessor accessor) : ITenantContext
@@ -39,6 +41,8 @@ public sealed class ErrorMiddleware(RequestDelegate next, ILogger<ErrorMiddlewar
         try { await next(context); }
         catch (KeyNotFoundException ex) { await Write(context, 404, ex.Message); }
         catch (InvalidOperationException ex) { await Write(context, 409, ex.Message); }
+        catch (UnauthorizedAccessException ex) { await Write(context, 401, ex.Message); }
+        catch (AppException ex) { await Write(context, ex.Status, ex.Message); }
         catch (FluentValidation.ValidationException ex)
         {
             await context.Response.WriteAsJsonAsync(new

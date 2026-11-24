@@ -93,3 +93,22 @@ public sealed class OutboxConfig : IEntityTypeConfiguration<OutboxMessage>
         b.HasIndex(e => e.ProcessedAt);
     }
 }
+
+public sealed class AssignmentConfig() : TenantConfig<ExamAssignment>("Assignments")
+{
+    public override void Configure(EntityTypeBuilder<ExamAssignment> b)
+    {
+        base.Configure(b);
+        b.HasIndex(e => new { e.ExamId, e.CandidateId }).IsUnique();
+        b.HasIndex(e => e.AttemptTokenHash).IsUnique();
+    }
+}
+
+public sealed class EvidenceConfig() : TenantConfig<Evidence>("Evidence")
+{
+    public override void Configure(EntityTypeBuilder<Evidence> b)
+    {
+        base.Configure(b);
+        b.HasIndex(e => new { e.AttemptId, e.Kind, e.CapturedAt });
+    }
+}

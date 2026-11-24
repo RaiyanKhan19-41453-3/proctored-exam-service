@@ -24,5 +24,8 @@ public enum Severity { None, Low, Medium, High, Critical }
 public enum EventType { Started, Submitted, TabBlur, TabFocus, Copy, Paste, FullscreenExit, CameraBlocked,
     MicBlocked, FaceAbsent, MultipleFaces, FaceCovered, AudioAnomaly, Disconnected, Reconnected, ForcedSubmit }
 public enum ReviewDecision { Pending, Approved, Flagged, Rejected }
+public enum AssignmentStatus { Assigned, Verified, InProgress, Completed, Revoked }
+public enum EvidenceKind { Snapshot, CameraChunk, AudioChunk, ScreenChunk, IdentitySelfie, RoomScan }
+public enum ConsentStatus { Pending, Accepted, Declined }
 
 public sealed record ProctorEventView(EventType Type, Severity Severity, DateTimeOffset At, string? Detail);

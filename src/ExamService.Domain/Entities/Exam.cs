@@ -108,3 +108,33 @@ public sealed class OutboxMessage : Entity
     public int RetryCount { get; set; }
     public string? LastError { get; set; }
 }
+
+public sealed class ExamAssignment : TenantEntity
+{
+    public Guid ExamId { get; set; }
+    public Guid CandidateId { get; set; }
+    public string CandidateName { get; set; } = default!;
+    public string? CandidateEmail { get; set; }
+    public string? IdentityPhotoKey { get; set; }
+    public AssignmentStatus Status { get; set; } = AssignmentStatus.Assigned;
+    public string? AttemptTokenHash { get; set; }
+    public DateTimeOffset? TokenExpiresAt { get; set; }
+    public DateTimeOffset? IdentityVerifiedAt { get; set; }
+    public decimal? FaceMatchScore { get; set; }
+    public ConsentStatus Consent { get; set; } = ConsentStatus.Pending;
+    public DateTimeOffset? ConsentAt { get; set; }
+    public string? ConsentIp { get; set; }
+}
+
+public sealed class Evidence : TenantEntity
+{
+    public Guid AttemptId { get; set; }
+    public EvidenceKind Kind { get; set; }
+    public string StorageKey { get; set; } = default!;
+    public string ContentType { get; set; } = default!;
+    public long SizeBytes { get; set; }
+    public string? Checksum { get; set; }
+    public DateTimeOffset CapturedAt { get; set; }
+    public string? DetailJson { get; set; }
+    public DateTimeOffset? ExpiresAt { get; set; }
+}

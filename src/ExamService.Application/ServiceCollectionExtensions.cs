@@ -2,6 +2,7 @@ using System.Reflection;
 using ExamService.Application.Common;
 using ExamService.Application.Features;
 using ExamService.Application.Features.Exams;
+using ExamService.Application.Features.Identity;
 using ExamService.Application.Features.Reports;
 using ExamService.Application.Features.Sessions;
 using FluentValidation;
@@ -21,6 +22,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IExamService, Features.ExamService>();
         services.AddScoped<IAttemptService, Features.AttemptService>();
         services.AddScoped<IReportService, Features.ReportService>();
+        services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<IEvidenceService, EvidenceService>();
         return services;
     }
 }

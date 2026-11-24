@@ -39,3 +39,8 @@ public sealed record EventItem(EventType Type, Severity Severity, DateTimeOffset
 
 public sealed record UploadUrlRequest(string FileName, string ContentType, long SizeBytes);
 public sealed record UploadUrlResponse(string Url, string Key, DateTimeOffset ExpiresAt);
+public sealed record StoreEvidenceRequest(EvidenceKind Kind, string ContentType, long SizeBytes,
+    string? Checksum, string? DetailJson);
+public sealed record EvidenceResponse(Guid Id, EvidenceKind Kind, string Url, DateTimeOffset CapturedAt);
+public sealed record AttemptTokenRequest(string Token);
+public sealed record FaceEventRequest(byte[] Frame);
