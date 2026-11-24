@@ -25,6 +25,17 @@ using ExamService.Api.RateLimiting;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (builder.Environment.IsProduction())
+{
+    var prodKey = builder.Configuration["Jwt:Key"] ?? "";
+    if (prodKey.Length < 32 || prodKey.Contains("dev-only", StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Jwt:Key must be a strong production secret shared with the main platform.");
+    if ((builder.Configuration.GetConnectionString("Default") ?? "").Contains("Password=exam;"))
+        throw new InvalidOperationException("The default database password is not allowed in Production.");
+    if (builder.Configuration["Minio:SecretKey"] == "exam")
+        throw new InvalidOperationException("The default MinIO secret is not allowed in Production.");
+}
 builder.Host.UseSerilog((ctx, services, config) => config
     .ReadFrom.Configuration(ctx.Configuration)
     .Enrich.FromLogContext()

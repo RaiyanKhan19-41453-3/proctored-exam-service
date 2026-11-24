@@ -36,3 +36,31 @@ jobs:
           done
           docker logs exam-ci-api
           exit 1
+
+  publish:
+    name: Publish images (main/tags)
+    needs: build
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build and push
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          API="ghcr.io/$OWNER/proctored-exam-api"
+          WEB="ghcr.io/$OWNER/proctored-exam-web"
+          docker build -t "$API:${{ github.sha }}" -f src/ExamService.Api/Dockerfile .
+          docker build -t "$WEB:${{ github.sha }}" ./web
+          docker push "$API:${{ github.sha }}"
+          docker push "$WEB:${{ github.sha }}"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            docker tag "$API:${{ github.sha }}" "$API:latest"
+            docker tag "$WEB:${{ github.sha }}" "$WEB:latest"
+            docker push "$API:latest"
+            docker push "$WEB:latest"
+          fi
