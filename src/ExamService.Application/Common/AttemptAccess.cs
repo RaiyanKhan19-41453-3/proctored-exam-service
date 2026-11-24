@@ -10,7 +10,7 @@ public static class AttemptAccess
     {
         var attempt = await db.Set<ExamAttempt>().FirstOrDefaultAsync(a => a.Id == attemptId, ct)
                       ?? throw new AppException("Attempt not found.", 404);
-        var privileged = current.Roles.Any(r => r is "Admin" or "Examiner");
+        var privileged = current.Roles.Any(r => r is "Admin" or "Teacher" or "Examiner");
         if (!privileged && current.UserId.HasValue && attempt.CandidateId != current.UserId.Value)
             throw new AppException("Not your attempt.", 403);
         return attempt;

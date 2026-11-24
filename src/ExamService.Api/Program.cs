@@ -76,8 +76,8 @@ builder.Services.AddHangfireServer();
 
 var app = builder.Build();
 app.UseMiddleware<ErrorMiddleware>();
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 app.UseCors("web");
 app.MapControllers();

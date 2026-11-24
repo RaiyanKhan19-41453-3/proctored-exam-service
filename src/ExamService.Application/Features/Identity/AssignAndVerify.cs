@@ -99,7 +99,8 @@ public sealed class VerifyIdentityHandler(IAppDbContext db, IObjectStorage stora
             TenantId = assignment.TenantId, Kind = EvidenceKind.IdentitySelfie,
             StorageKey = key, ContentType = "image/jpeg", SizeBytes = request.Selfie.Length,
             CapturedAt = DateTimeOffset.UtcNow,
-            DetailJson = JsonSerializer.Serialize(new { assignment.Id })
+            DetailJson = JsonSerializer.Serialize(new { assignment.Id }),
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(90)
         });
 
         var score = await CompareFacesAsync(assignment.IdentityPhotoKey, key, ct);

@@ -10,7 +10,7 @@ namespace ExamService.Api;
 
 [ApiController]
 [Route("api/exams")]
-[Authorize(Roles = "Admin,Examiner")]
+[Authorize(Roles = "Admin,Teacher,Examiner")]
 [Produces("application/json")]
 public sealed class ExamsController(IExamService exams) : ControllerBase
 {
@@ -72,7 +72,7 @@ public sealed class AttemptsController(IAttemptService attempts, MediatR.ISender
 
 [ApiController]
 [Route("api/reports")]
-[Authorize(Roles = "Admin,Examiner")]
+[Authorize(Roles = "Admin,Teacher,Examiner")]
 [Produces("application/json")]
 public sealed class ReportsController(IReportService reports) : ControllerBase
 {
@@ -120,7 +120,7 @@ public sealed class HealthController : ControllerBase
 
 [ApiController]
 [Route("api/candidates")]
-[Authorize(Roles = "Admin,Examiner")]
+[Authorize(Roles = "Admin,Teacher,Examiner")]
 [Produces("application/json")]
 public sealed class CandidatesController(IIdentityService identity) : ControllerBase
 {
@@ -174,7 +174,7 @@ public sealed class EvidenceController(MediatR.ISender sender) : ControllerBase
 
 [ApiController]
 [Route("api/proctor")]
-[Authorize(Roles = "Admin,Examiner")]
+[Authorize(Roles = "Admin,Teacher,Examiner")]
 [Produces("application/json")]
 public sealed class ProctorController(IAnomalyService anomalies, MediatR.ISender sender) : ControllerBase
 {

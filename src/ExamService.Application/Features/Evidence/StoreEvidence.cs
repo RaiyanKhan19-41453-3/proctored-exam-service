@@ -24,7 +24,7 @@ public sealed class StoreEvidenceValidator : AbstractValidator<StoreEvidence>
 }
 
 public sealed class StoreEvidenceHandler(IAppDbContext db, IObjectStorage storage, ITenantContext current,
-    IEvidenceAnalyzer analyzer) : IRequestHandler<StoreEvidence, Guid>
+    IEvidenceAnalyzer analyzer, IProctorNotifier notifier) : IRequestHandler<StoreEvidence, Guid>
 {
     public async Task<Guid> Handle(StoreEvidence request, CancellationToken ct)
     {
@@ -51,36 +51,45 @@ public sealed class StoreEvidenceHandler(IAppDbContext db, IObjectStorage storag
         };
         db.Set<Domain.Entities.Evidence>().Add(evidence);
 
+        var newEventCount = 0;
         // Analyze frames/audio and turn findings into proctor events automatically.
         if (kind == EvidenceKind.Snapshot)
         {
             var analysis = await analyzer.AnalyzeFrameAsync(data, ct);
             if (!analysis.FacePresent)
-                AddEvent(attempt.Id, EventType.FaceAbsent, Domain.Common.Severity.High, "No face detected in frame", evidence.Id, ct);
+                if (await AddEvent(attempt, EventType.FaceAbsent, Domain.Common.Severity.High, "No face detected in frame", evidence.Id)) newEventCount++;
             if (analysis.FaceCount > 1)
-                AddEvent(attempt.Id, EventType.MultipleFaces, Domain.Common.Severity.Critical, $"{analysis.FaceCount} faces detected", evidence.Id, ct);
+                if (await AddEvent(attempt, EventType.MultipleFaces, Domain.Common.Severity.Critical, $"{analysis.FaceCount} faces detected", evidence.Id)) newEventCount++;
             if (analysis.FaceCovered)
-                AddEvent(attempt.Id, EventType.FaceCovered, Domain.Common.Severity.Critical, "Face appears covered", evidence.Id, ct);
+                if (await AddEvent(attempt, EventType.FaceCovered, Domain.Common.Severity.Critical, "Face appears covered", evidence.Id)) newEventCount++;
         }
         else if (kind == EvidenceKind.AudioChunk)
         {
             var audio = await analyzer.AnalyzeAudioAsync(data, ct);
             if (audio.Anomaly)
-                AddEvent(attempt.Id, EventType.AudioAnomaly, Domain.Common.Severity.High,
-                    $"Peak level {audio.PeakLevel}", evidence.Id, ct);
+                if (await AddEvent(attempt, EventType.AudioAnomaly, Domain.Common.Severity.High,
+                    $"Peak level {audio.PeakLevel}", evidence.Id)) newEventCount++;
         }
-        attempt.ViolationCount += 0; // events increment below via tracked inserts
+        attempt.ViolationCount += newEventCount;
         await db.SaveChangesAsync(ct);
         return evidence.Id;
     }
 
-    private void AddEvent(Guid attemptId, EventType type, Domain.Common.Severity severity, string detail, Guid evidenceId, CancellationToken ct)
+    private async Task<bool> AddEvent(ExamAttempt attempt, EventType type, Domain.Common.Severity severity,
+        string detail, Guid evidenceId)
     {
+        var now = DateTimeOffset.UtcNow;
         db.Set<ProctorEvent>().Add(new ProctorEvent
         {
-            TenantId = current.TenantId, AttemptId = attemptId, EventType = type,
+            TenantId = current.TenantId, AttemptId = attempt.Id, EventType = type,
             Severity = severity, DetailJson = JsonSerializer.Serialize(new { detail, evidenceId }),
-            OccurredAt = DateTimeOffset.UtcNow
+            OccurredAt = now
         });
+        await notifier.PublishEventAsync(current.TenantId, attempt.ExamId, attempt.Id, new
+        {
+            attemptId = attempt.Id, examId = attempt.ExamId, type = type.ToString(),
+            severity = severity.ToString(), at = now, detail
+        });
+        return true;
     }
 }

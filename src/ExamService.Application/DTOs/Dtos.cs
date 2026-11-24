@@ -5,7 +5,7 @@ namespace ExamService.Application.DTOs;
 public sealed record CreateExamRequest(string Title, string? Description, DateTimeOffset? StartUtc,
     DateTimeOffset? EndUtc, int DurationMinutes, decimal TotalMarks, bool RequireCamera = true,
     bool RequireMicrophone = true, bool LockTab = true, bool DisableCopyPaste = true,
-    bool AiEvaluationEnabled = true, string? Instructions = null, bool RequireIdentityVerification = true);
+    bool AiEvaluationEnabled = true, string? Instructions = null, bool RequireIdentityVerification = false);
 
 public sealed record AddQuestionRequest(QuestionType Type, string Text, string? OptionsJson,
     string? CorrectAnswerJson, decimal Marks, int Order);

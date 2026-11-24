@@ -10,7 +10,7 @@ namespace ExamService.Application.Features.Exams;
 public sealed record CreateExam(string Title, string? Description, DateTimeOffset? StartUtc,
     DateTimeOffset? EndUtc, int DurationMinutes, decimal TotalMarks, bool RequireCamera,
     bool RequireMicrophone, bool LockTab, bool DisableCopyPaste, bool AiEvaluationEnabled,
-    string? Instructions, bool RequireIdentityVerification = true) : IRequest<Guid>, IRequiresTenant;
+    string? Instructions, bool RequireIdentityVerification = false) : IRequest<Guid>, IRequiresTenant;
 
 public sealed class CreateExamValidator : AbstractValidator<CreateExam>
 {

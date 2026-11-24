@@ -18,7 +18,7 @@ public sealed class Exam : TenantEntity
     public bool AiEvaluationEnabled { get; set; } = true;
     public string? Instructions { get; set; }
     // Switch-ready for a future kiosk client. false = any normal browser (current default).
-    public bool RequireIdentityVerification { get; set; } = true;
+    public bool RequireIdentityVerification { get; set; }
     public bool RequiresKiosk { get; set; }
     public int QuestionCount { get; set; }
 }

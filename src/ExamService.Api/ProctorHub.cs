@@ -15,6 +15,9 @@ public sealed class ProctorHub : Hub
         var examId = Context.GetHttpContext()?.Request.Query["examId"].ToString();
         if (Guid.TryParse(examId, out var id))
             await Groups.AddToGroupAsync(Context.ConnectionId, $"exam:{id}");
+        var attemptId = Context.GetHttpContext()?.Request.Query["attemptId"].ToString();
+        if (Guid.TryParse(attemptId, out var aid))
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"attempt:{aid}");
         await base.OnConnectedAsync();
     }
 }
