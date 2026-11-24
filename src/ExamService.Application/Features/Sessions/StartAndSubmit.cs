@@ -40,7 +40,7 @@ public sealed class StartAttemptHandler(IAppDbContext db, ITenantContext current
             throw new UnauthorizedAccessException("Assignment has been revoked.");
         if (assignment.Consent != ConsentStatus.Accepted)
             throw new InvalidOperationException("Consent must be accepted before starting.");
-        if (assignment.IdentityVerifiedAt is null && exam.RequireCamera)
+        if (exam.RequireIdentityVerification && assignment.IdentityVerifiedAt is null)
             throw new InvalidOperationException("Identity must be verified before starting.");
         var now = DateTimeOffset.UtcNow;
         if (exam.StartUtc.HasValue && now < exam.StartUtc.Value) throw new InvalidOperationException("Exam has not started.");
@@ -95,8 +95,7 @@ public sealed class SaveAnswerHandler(IAppDbContext db, ITenantContext current) 
 {
     public async Task<bool> Handle(SaveAnswer request, CancellationToken ct)
     {
-        var attempt = await db.Set<ExamAttempt>().FirstOrDefaultAsync(a => a.Id == request.AttemptId, ct)
-                      ?? throw new KeyNotFoundException("Attempt not found.");
+        var attempt = await db.OwnedAsync(current, request.AttemptId, ct);
         if (attempt.Status != AttemptStatus.InProgress) throw new InvalidOperationException("Attempt is not active.");
         var question = await db.Set<Question>().FirstOrDefaultAsync(q => q.Id == request.QuestionId && q.ExamId == attempt.ExamId, ct)
                        ?? throw new KeyNotFoundException("Question not found.");
@@ -126,8 +125,7 @@ public sealed class SubmitAttemptHandler(IAppDbContext db, ITenantContext curren
 {
     public async Task<Guid> Handle(SubmitAttempt request, CancellationToken ct)
     {
-        var attempt = await db.Set<ExamAttempt>().FirstOrDefaultAsync(a => a.Id == request.AttemptId, ct)
-                      ?? throw new KeyNotFoundException("Attempt not found.");
+        var attempt = await db.OwnedAsync(current, request.AttemptId, ct);
         if (attempt.Status != AttemptStatus.InProgress) return attempt.Id;
 
         var exam = await db.Set<Exam>().FirstOrDefaultAsync(e => e.Id == attempt.ExamId, ct)
@@ -189,8 +187,7 @@ public sealed class RecordProctorEventHandler(IAppDbContext db, ITenantContext c
 {
     public async Task<bool> Handle(RecordProctorEvent request, CancellationToken ct)
     {
-        var attempt = await db.Set<ExamAttempt>().FirstOrDefaultAsync(a => a.Id == request.AttemptId, ct)
-                      ?? throw new KeyNotFoundException("Attempt not found.");
+        var attempt = await db.OwnedAsync(current, request.AttemptId, ct);
         db.Set<ProctorEvent>().Add(new ProctorEvent
         {
             TenantId = current.TenantId, AttemptId = attempt.Id, EventType = request.Type,

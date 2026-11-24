@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Proctor from './Proctor';
+import { enqueue, flush, pendingCount } from './offline';
 
 // Must match ExamService.Domain.Common.EventType / Severity on the server.
 const EV = { TabBlur: 2, Copy: 3, Paste: 4, FullscreenExit: 6, CameraBlocked: 7,
@@ -27,6 +28,7 @@ export default function App() {
   const [reports, setReports] = useState<Report[]>([]);
   const [error, setError] = useState('');
   const [proctorOn, setProctorOn] = useState(false);
+  const [queued, setQueued] = useState(pendingCount());
   const [violations, setViolations] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -68,6 +70,14 @@ export default function App() {
   }, [exam, report]);
 
   useEffect(() => () => streamRef.current?.getTracks().forEach(t => t.stop()), []);
+
+  useEffect(() => {
+    if (!token) return;
+    const retry = () => void flush(token).then(n => { if (n) setQueued(pendingCount()); });
+    window.addEventListener('online', retry);
+    retry();
+    return () => window.removeEventListener('online', retry);
+  }, [token]);
 
   async function login() {
     setError('');
@@ -123,11 +133,26 @@ export default function App() {
   async function save(questionId: string, value: string) {
     setAnswers(a => ({ ...a, [questionId]: value }));
     if (!attemptId) return;
-    await fetch(`${API}/attempts/${attemptId}/answers`, {
-      method: 'POST', headers: headers(),
-      body: JSON.stringify({ questionId, responseJson: JSON.stringify({ value }) }),
-    }).catch(() => void report(EV.Disconnected, SEV.Medium));
+    const body = { questionId, responseJson: JSON.stringify({ value }) };
+    try {
+      const r = await fetch(`${API}/attempts/${attemptId}/answers`, {
+        method: 'POST', headers: headers(), body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    } catch {
+      enqueue(`${API}/attempts/${attemptId}/answers`, body);
+      setQueued(pendingCount());
+      void report(EV.Disconnected, SEV.Medium);
+    }
   }
+
+  function toBase64(blob: Blob): Promise<string> {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.readAsDataURL(blob);
+  });
+}
 
   function startEvidenceCapture(id: string, stream: MediaStream) {
     const video = videoRef.current;
@@ -140,16 +165,42 @@ export default function App() {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       canvas.toBlob(async blob => {
         if (!blob) return;
-        const bytes = new Uint8Array(await blob.arrayBuffer());
+        const base64 = await toBase64(blob);
         try {
-          await fetch(`${API}/evidence/attempts/${id}?data=${encodeURIComponent(btoa(String.fromCharCode(...bytes.slice(0, 50000))))}`, {
+          await fetch(`${API}/evidence/attempts/${id}`, {
             method: 'POST', headers: headers(),
-            body: JSON.stringify({ kind: 0, contentType: 'image/jpeg', sizeBytes: bytes.length, detailJson: null, checksum: null }),
+            body: JSON.stringify({ kind: 0, contentType: 'image/jpeg', sizeBytes: blob.size, detailJson: null, checksum: null, dataBase64: base64 }),
           }).catch(() => void report(EV.Disconnected, SEV.Medium));
         } catch { /* ignore */ }
       }, 'image/jpeg', 0.6);
     };
     const timer = window.setInterval(() => void captureFrame(), 20000);
+    const audioTrack = stream.getAudioTracks()[0];
+    if (audioTrack) {
+      try {
+        const recorder = new MediaRecorder(new MediaStream([audioTrack]), { mimeType: 'audio/webm' });
+        const chunks: Blob[] = [];
+        recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+        recorder.onstop = async () => {
+          if (!chunks.length) return;
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+          const base64 = await toBase64(blob);
+          try {
+            await fetch(`${API}/evidence/attempts/${id}`, {
+              method: 'POST', headers: headers(),
+              body: JSON.stringify({ kind: 2, contentType: 'audio/webm', sizeBytes: blob.size, detailJson: null, checksum: null, dataBase64: base64 }),
+            }).catch(() => {});
+          } catch { /* ignore */ }
+          chunks.length = 0;
+        };
+        const audioTimer = window.setInterval(() => recorder.state === 'inactive' && recorder.start(), 15000);
+        const stopTimer = window.setInterval(() => recorder.state === 'recording' && recorder.stop(), 28000);
+        audioTrack.addEventListener('ended', () => {
+          window.clearInterval(audioTimer); window.clearInterval(stopTimer);
+          if (recorder.state === 'recording') recorder.stop();
+        });
+      } catch { /* MediaRecorder unsupported */ }
+    }
     void captureFrame();
     stream.getTracks().forEach(t => t.addEventListener('ended', () => window.clearInterval(timer)));
   }
@@ -200,7 +251,7 @@ export default function App() {
               <p className="muted">{exam.durationMinutes} min · {exam.questions.length} questions · camera {exam.requireCamera ? 'on' : 'off'}</p>
               <video ref={videoRef} autoPlay muted style={{ width: 240, borderRadius: 8 }} />
               {!attemptId ? <button onClick={begin}>Start exam</button> : <button onClick={submit}>Submit</button>}
-              <p className="warn">Violations recorded: {violations}</p>
+              <p className="warn">Violations recorded: {violations} · Offline saves queued: {queued}</p>
               {exam.questions.map((q, i) => (
                 <div key={q.id} className="question">
                   <strong>{i + 1}. {q.text}</strong>

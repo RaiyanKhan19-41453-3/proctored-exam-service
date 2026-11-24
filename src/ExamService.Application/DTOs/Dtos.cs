@@ -5,7 +5,7 @@ namespace ExamService.Application.DTOs;
 public sealed record CreateExamRequest(string Title, string? Description, DateTimeOffset? StartUtc,
     DateTimeOffset? EndUtc, int DurationMinutes, decimal TotalMarks, bool RequireCamera = true,
     bool RequireMicrophone = true, bool LockTab = true, bool DisableCopyPaste = true,
-    bool AiEvaluationEnabled = true, string? Instructions = null);
+    bool AiEvaluationEnabled = true, string? Instructions = null, bool RequireIdentityVerification = true);
 
 public sealed record AddQuestionRequest(QuestionType Type, string Text, string? OptionsJson,
     string? CorrectAnswerJson, decimal Marks, int Order);
@@ -40,8 +40,12 @@ public sealed record EventItem(EventType Type, Severity Severity, DateTimeOffset
 public sealed record UploadUrlRequest(string FileName, string ContentType, long SizeBytes);
 public sealed record UploadUrlResponse(string Url, string Key, DateTimeOffset ExpiresAt);
 public sealed record StoreEvidenceRequest(EvidenceKind Kind, string ContentType, long SizeBytes,
-    string? Checksum, string? DetailJson);
+    string? Checksum, string? DetailJson, string DataBase64);
 public sealed record EvidenceResponse(Guid Id, EvidenceKind Kind, string Url, DateTimeOffset CapturedAt);
 public sealed record AttemptTokenRequest(string Token, string? IpAddress = null, ClientMode ClientMode = ClientMode.Browser, string? AttestationJson = null);
 public sealed record FaceEventRequest(byte[] Frame);
 public sealed record FlagResponse(Guid Id, FlagKind Kind, decimal Score, string? DetailJson, bool Reviewed);
+
+public sealed record ResultResponse(Guid ReportId, decimal? TotalScore, decimal IntegrityScore,
+    ReviewDecision Decision, bool Published, string? Summary);
+public sealed record PublishResultsResponse(int Published);

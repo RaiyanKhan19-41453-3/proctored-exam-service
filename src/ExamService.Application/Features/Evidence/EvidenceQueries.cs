@@ -11,10 +11,11 @@ public sealed record ListEvidence(Guid AttemptId, EvidenceKind? Kind) : IRequest
 public sealed record EvidenceDto(Guid Id, EvidenceKind Kind, string StorageKey,
     long SizeBytes, DateTimeOffset CapturedAt, string? DetailJson);
 
-public sealed class ListEvidenceHandler(IAppDbContext db) : IRequestHandler<ListEvidence, IReadOnlyList<EvidenceDto>>
+public sealed class ListEvidenceHandler(IAppDbContext db, ITenantContext current) : IRequestHandler<ListEvidence, IReadOnlyList<EvidenceDto>>
 {
     public async Task<IReadOnlyList<EvidenceDto>> Handle(ListEvidence request, CancellationToken ct)
     {
+        await db.OwnedAsync(current, request.AttemptId, ct);
         var q = db.Set<Domain.Entities.Evidence>().AsNoTracking().Where(e => e.AttemptId == request.AttemptId);
         if (request.Kind.HasValue) q = q.Where(e => e.Kind == request.Kind.Value);
         return await q.OrderBy(e => e.CapturedAt)
@@ -25,13 +26,14 @@ public sealed class ListEvidenceHandler(IAppDbContext db) : IRequestHandler<List
 
 public sealed record GetEvidenceUrl(Guid EvidenceId) : IRequest<string>, IRequiresTenant;
 
-public sealed class GetEvidenceUrlHandler(IAppDbContext db, IObjectStorage storage)
+public sealed class GetEvidenceUrlHandler(IAppDbContext db, IObjectStorage storage, ITenantContext current)
     : IRequestHandler<GetEvidenceUrl, string>
 {
     public async Task<string> Handle(GetEvidenceUrl request, CancellationToken ct)
     {
         var evidence = await db.Set<Domain.Entities.Evidence>().FirstOrDefaultAsync(e => e.Id == request.EvidenceId, ct)
                        ?? throw new AppException("Evidence not found.", 404);
+        await db.OwnedAsync(current, evidence.AttemptId, ct);
         return await storage.PresignDownloadAsync(evidence.StorageKey, TimeSpan.FromMinutes(30), ct);
     }
 }

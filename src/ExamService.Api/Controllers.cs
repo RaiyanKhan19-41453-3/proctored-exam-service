@@ -10,7 +10,7 @@ namespace ExamService.Api;
 
 [ApiController]
 [Route("api/exams")]
-[Authorize]
+[Authorize(Roles = "Admin,Examiner")]
 [Produces("application/json")]
 public sealed class ExamsController(IExamService exams) : ControllerBase
 {
@@ -72,7 +72,7 @@ public sealed class AttemptsController(IAttemptService attempts, MediatR.ISender
 
 [ApiController]
 [Route("api/reports")]
-[Authorize]
+[Authorize(Roles = "Admin,Examiner")]
 [Produces("application/json")]
 public sealed class ReportsController(IReportService reports) : ControllerBase
 {
@@ -89,6 +89,18 @@ public sealed class ReportsController(IReportService reports) : ControllerBase
     {
         var report = await reports.GetAsync(id, ct);
         return report is null ? NotFound() : Ok(report);
+    }
+
+    [HttpPost("exams/{examId:guid}/publish")]
+    public async Task<IActionResult> Publish([FromRoute] Guid examId, CancellationToken ct)
+        => Ok(new { published = await reports.PublishAsync(examId, ct) });
+
+    [HttpGet("attempts/{attemptId:guid}/result")]
+    [Authorize]
+    public async Task<IActionResult> MyResult([FromRoute] Guid attemptId, CancellationToken ct)
+    {
+        var result = await reports.GetResultAsync(attemptId, ct);
+        return result is null ? NotFound() : Ok(result);
     }
 
     [HttpPost("{id:guid}/review")]
@@ -108,7 +120,7 @@ public sealed class HealthController : ControllerBase
 
 [ApiController]
 [Route("api/candidates")]
-[Authorize]
+[Authorize(Roles = "Admin,Examiner")]
 [Produces("application/json")]
 public sealed class CandidatesController(IIdentityService identity) : ControllerBase
 {
@@ -135,10 +147,9 @@ public sealed class EvidenceController(MediatR.ISender sender) : ControllerBase
 {
     [HttpPost("attempts/{attemptId:guid}")]
     public async Task<IActionResult> Store([FromRoute] Guid attemptId,
-        [FromBody] ExamService.Application.DTOs.StoreEvidenceRequest request,
-        [FromQuery] byte[] data, CancellationToken ct)
+        [FromBody] ExamService.Application.DTOs.StoreEvidenceRequest request, CancellationToken ct)
         => Ok(new { evidenceId = await sender.Send(new ExamService.Application.Features.Evidence.StoreEvidence(
-            attemptId, request, data), ct) });
+            attemptId, request, []), ct) });
 
     [HttpGet("attempts/{attemptId:guid}")]
     public async Task<IActionResult> List([FromRoute] Guid attemptId,
@@ -152,7 +163,7 @@ public sealed class EvidenceController(MediatR.ISender sender) : ControllerBase
 
 [ApiController]
 [Route("api/proctor")]
-[Authorize]
+[Authorize(Roles = "Admin,Examiner")]
 [Produces("application/json")]
 public sealed class ProctorController(IAnomalyService anomalies, MediatR.ISender sender) : ControllerBase
 {

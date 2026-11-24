@@ -18,7 +18,7 @@ public sealed class StoreEvidenceValidator : AbstractValidator<StoreEvidence>
     public StoreEvidenceValidator()
     {
         RuleFor(x => x.AttemptId).NotEmpty();
-        RuleFor(x => x.Data).NotEmpty().Must(d => d.Length <= 20 * 1024 * 1024)
+        RuleFor(x => x.Request.DataBase64).NotEmpty()
             .WithMessage("Evidence chunk must be at most 20 MB.");
     }
 }
@@ -28,8 +28,8 @@ public sealed class StoreEvidenceHandler(IAppDbContext db, IObjectStorage storag
 {
     public async Task<Guid> Handle(StoreEvidence request, CancellationToken ct)
     {
-        var attempt = await db.Set<ExamAttempt>().FirstOrDefaultAsync(a => a.Id == request.AttemptId, ct)
-                      ?? throw new AppException("Attempt not found.", 404);
+        var data = Convert.FromBase64String(request.Request.DataBase64);
+        var attempt = await db.OwnedAsync(current, request.AttemptId, ct);
         if (attempt.Status != AttemptStatus.InProgress)
             throw new AppException("Attempt is not active.", 409);
 
@@ -38,18 +38,18 @@ public sealed class StoreEvidenceHandler(IAppDbContext db, IObjectStorage storag
             ? "jpg" : "webm";
         var key = $"{current.TenantId:N}/attempts/{attempt.Id:N}/{kind}/{Guid.NewGuid():N}.{ext}";
         var url = await storage.PresignUploadAsync(key, request.Request.ContentType, TimeSpan.FromMinutes(10), ct);
-        using var content = new ByteArrayContent(request.Data);
+        using var content = new ByteArrayContent(data);
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(request.Request.ContentType);
         using var http = new HttpClient();
         var put = await http.PutAsync(url, content, ct);
         if (!put.IsSuccessStatusCode) throw new AppException("Evidence upload failed.", 502);
 
-        var checksum = request.Request.Checksum ?? Convert.ToHexString(SHA256.HashData(request.Data));
+        var checksum = request.Request.Checksum ?? Convert.ToHexString(SHA256.HashData(data));
         var evidence = new Domain.Entities.Evidence
         {
             TenantId = current.TenantId, AttemptId = attempt.Id, Kind = kind,
             StorageKey = key, ContentType = request.Request.ContentType,
-            SizeBytes = request.Data.Length, Checksum = checksum,
+            SizeBytes = data.Length, Checksum = checksum,
             CapturedAt = DateTimeOffset.UtcNow,
             DetailJson = request.Request.DetailJson,
             ExpiresAt = DateTimeOffset.UtcNow.AddDays(90)
@@ -59,7 +59,7 @@ public sealed class StoreEvidenceHandler(IAppDbContext db, IObjectStorage storag
         // Analyze frames/audio and turn findings into proctor events automatically.
         if (kind == EvidenceKind.Snapshot)
         {
-            var analysis = await analyzer.AnalyzeFrameAsync(request.Data, ct);
+            var analysis = await analyzer.AnalyzeFrameAsync(data, ct);
             if (!analysis.FacePresent)
                 AddEvent(attempt.Id, EventType.FaceAbsent, Domain.Common.Severity.High, "No face detected in frame", evidence.Id, ct);
             if (analysis.FaceCount > 1)
@@ -69,7 +69,7 @@ public sealed class StoreEvidenceHandler(IAppDbContext db, IObjectStorage storag
         }
         else if (kind == EvidenceKind.AudioChunk)
         {
-            var audio = await analyzer.AnalyzeAudioAsync(request.Data, ct);
+            var audio = await analyzer.AnalyzeAudioAsync(data, ct);
             if (audio.Anomaly)
                 AddEvent(attempt.Id, EventType.AudioAnomaly, Domain.Common.Severity.High,
                     $"Peak level {audio.PeakLevel}", evidence.Id, ct);

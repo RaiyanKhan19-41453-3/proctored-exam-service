@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using CoachingPlatform.Shared;
 using ExamService.Api;
 using ExamService.Application;
@@ -6,6 +7,7 @@ using ExamService.Application.Common;
 using ExamService.Infrastructure.Ai;
 using ExamService.Application.Features.Sessions;
 using ExamService.Application.Features.Anomalies;
+using ExamService.Application.Features.Evidence;
 using ExamService.Infrastructure.Persistence;
 using ExamService.Infrastructure.Storage;
 using Hangfire;
@@ -25,6 +27,18 @@ builder.Services.AddScoped<HttpTenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<HttpTenantContext>());
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(connection));
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+    {
+        var tenant = ctx.User?.FindFirst("tenant_id")?.Value ?? "anon";
+        return RateLimitPartition.GetFixedWindowLimiter(tenant, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 600, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
+        });
+    });
+});
 builder.Services.AddApplication();
 builder.Services.AddControllers();
 builder.Services.AddProductJwt(builder.Configuration);
@@ -62,6 +76,7 @@ builder.Services.AddHangfireServer();
 
 var app = builder.Build();
 app.UseMiddleware<ErrorMiddleware>();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseCors("web");
@@ -84,6 +99,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 var recurring = app.Services.GetRequiredService<IRecurringJobManager>();
+recurring.AddOrUpdate<RetentionWorker>("evidence-retention", w => w.CleanupAsync(), Cron.Daily);
 recurring.AddOrUpdate<AnomalyWorker>("detect-anomalies", w => w.DetectAllAsync(), "*/5 * * * *");
 recurring.AddOrUpdate<DeadlineWorker>("expire-attempts", w => w.ExpireAsync(), "*/1 * * * * *");
 recurring.AddOrUpdate<ReportWorker>("generate-reports", w => w.GeneratePendingAsync(), "*/1 * * * *");

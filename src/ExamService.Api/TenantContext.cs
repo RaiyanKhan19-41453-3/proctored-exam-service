@@ -31,6 +31,8 @@ public sealed class HttpTenantContext(IHttpContextAccessor accessor) : ITenantCo
     }
 
     public string? UserEmail => Http?.User.FindFirst("email")?.Value;
+
+    public IReadOnlyList<string> Roles => Http?.User.FindAll("role").Select(c => c.Value).ToArray() ?? [];
 }
 
 public sealed class ErrorMiddleware(RequestDelegate next, ILogger<ErrorMiddleware> logger)

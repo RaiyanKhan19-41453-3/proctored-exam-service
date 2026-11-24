@@ -4,6 +4,7 @@ using Hangfire;
 using ExamService.Domain.Common;
 using ExamService.Application.Features.Sessions;
 using ExamService.Application.Features.Anomalies;
+using ExamService.Application.Features.Evidence;
 using ExamService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -63,5 +64,16 @@ public sealed class AnomalyWorker(IServiceScopeFactory scopes, ILogger<AnomalyWo
             try { await sender.Send(new DetectAnomalies(exam)); }
             catch (Exception ex) { logger.LogError(ex, "Anomaly detection failed for exam {Id}", exam); }
         }
+    }
+}
+
+public sealed class RetentionWorker(IServiceScopeFactory scopes, ILogger<RetentionWorker> logger)
+{
+    public async Task CleanupAsync()
+    {
+        using var scope = scopes.CreateScope();
+        var sender = scope.ServiceProvider.GetRequiredService<MediatR.ISender>();
+        var removed = await sender.Send(new CleanupExpiredEvidence());
+        if (removed > 0) logger.LogInformation("Removed {Count} expired evidence records", removed);
     }
 }

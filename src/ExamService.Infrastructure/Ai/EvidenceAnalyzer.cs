@@ -18,7 +18,7 @@ public sealed class EvidenceAnalyzer(IConfiguration configuration, HttpClient ht
 
     public async Task<FaceAnalysis> AnalyzeFrameAsync(byte[] image, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(_endpoint)) return new FaceAnalysis(false, 0, false, null);
+        if (string.IsNullOrWhiteSpace(_endpoint)) return new FaceAnalysis(true, 1, false, null); // not analyzed -> do not flag
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint);
@@ -49,7 +49,7 @@ public sealed class EvidenceAnalyzer(IConfiguration configuration, HttpClient ht
                 r.RootElement.GetProperty("faceCount").GetInt32(),
                 r.RootElement.GetProperty("faceCovered").GetBoolean(), null);
         }
-        catch (Exception) { return new FaceAnalysis(false, 0, false, null); }
+        catch (Exception) { return new FaceAnalysis(true, 1, false, null); }
     }
 
     public Task<AudioAnalysis> AnalyzeAudioAsync(byte[] audio, CancellationToken ct)

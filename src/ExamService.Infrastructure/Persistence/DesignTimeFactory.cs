@@ -9,6 +9,7 @@ public sealed class StaticTenantContext : ITenantContext
     public Guid TenantId { get; set; }
     public Guid? UserId { get; set; }
     public string? UserEmail { get; set; }
+    public IReadOnlyList<string> Roles { get; set; } = [];
 }
 
 public sealed class DesignTimeFactory : IDesignTimeDbContextFactory<AppDbContext>

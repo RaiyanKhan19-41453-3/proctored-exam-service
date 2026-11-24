@@ -37,6 +37,7 @@ public sealed class TestTenant : ITenantContext
     public Guid TenantId { get; set; } = Guid.NewGuid();
     public Guid? UserId { get; set; } = Guid.NewGuid();
     public string? UserEmail { get; set; } = "examiner@test.local";
+    public IReadOnlyList<string> Roles { get; set; } = ["Admin"];
 }
 
 public sealed class NoopStorage : IObjectStorage

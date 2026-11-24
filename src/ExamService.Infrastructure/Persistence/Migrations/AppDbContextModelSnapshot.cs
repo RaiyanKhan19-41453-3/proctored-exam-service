@@ -242,6 +242,9 @@ namespace ExamService.Infrastructure.Persistence.Migrations
                     b.Property<decimal?>("ObjectiveScore")
                         .HasColumnType("numeric");
 
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("ReviewedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -366,6 +369,9 @@ namespace ExamService.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer");
 
                     b.Property<bool>("RequireCamera")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequireIdentityVerification")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("RequireMicrophone")

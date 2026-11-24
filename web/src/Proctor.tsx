@@ -10,6 +10,8 @@ export default function Proctor({ token, examId }: { token: string; examId: stri
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [flags, setFlags] = useState<Flag[]>([]);
   const [status, setStatus] = useState('connecting…');
+  const [evidence, setEvidence] = useState<{ id: string; kind: number; url: string }[]>([]);
+  const [selected, setSelected] = useState('');
   const hub = useRef<HubConnection | null>(null);
 
   const loadFlags = async () => {
@@ -17,6 +19,21 @@ export default function Proctor({ token, examId }: { token: string; examId: stri
       headers: { Authorization: `Bearer ${token}` },
     });
     if (r.ok) setFlags(await r.json() as Flag[]);
+  };
+
+  const loadEvidence = async (attemptId: string) => {
+    setSelected(attemptId);
+    const r = await fetch(`/api/evidence/attempts/${attemptId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return;
+    const rows = await r.json() as { id: string; kind: number }[];
+    const withUrls = await Promise.all(rows.slice(0, 40).map(async row => {
+      const u = await fetch(`/api/evidence/${row.id}/url`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = u.ok ? await u.json() as { url: string } : { url: '' };
+      return { id: row.id, kind: row.kind, url: data.url };
+    }));
+    setEvidence(withUrls);
   };
 
   const loadHistory = async () => {
@@ -52,8 +69,20 @@ export default function Proctor({ token, examId }: { token: string; examId: stri
       ))}
       <h3>Live events</h3>
       {events.slice(0, 30).map((e, i) => (
-        <div key={i} className="report">{e.severity} · {e.type} · {e.attemptId.slice(0, 8)}</div>
+        <div key={i} className="report">
+          {e.severity} · {e.type} · {e.attemptId.slice(0, 8)}
+          <button onClick={() => void loadEvidence(e.attemptId)}>Evidence</button>
+        </div>
       ))}
+      {selected && (
+        <div className="card">
+          <h3>Evidence for attempt {selected.slice(0, 8)}</h3>
+          {evidence.length === 0 ? <p className="muted">No evidence yet.</p> : evidence.map(e => (
+            e.kind === 0 || e.kind === 4 ? <img key={e.id} src={e.url} alt="frame" style={{ width: 160, margin: 4 }} />
+                                        : <a key={e.id} href={e.url} target="_blank" rel="noreferrer">Open recording #{e.kind}</a>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

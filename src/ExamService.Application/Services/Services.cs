@@ -33,6 +33,8 @@ public interface IReportService
     Task<IReadOnlyList<ReportSummary>> ListAsync(Guid examId, CancellationToken ct = default);
     Task<ReportDetail?> GetAsync(Guid reportId, CancellationToken ct = default);
     Task<bool> ReviewAsync(Guid reportId, ReviewReportRequest request, CancellationToken ct = default);
+    Task<int> PublishAsync(Guid examId, CancellationToken ct = default);
+    Task<ResultResponse?> GetResultAsync(Guid attemptId, CancellationToken ct = default);
 }
 
 public sealed class ExamService(ISender sender) : IExamService
@@ -40,7 +42,7 @@ public sealed class ExamService(ISender sender) : IExamService
     public Task<Guid> CreateAsync(CreateExamRequest r, CancellationToken ct)
         => sender.Send(new CreateExam(r.Title, r.Description, r.StartUtc, r.EndUtc, r.DurationMinutes,
             r.TotalMarks, r.RequireCamera, r.RequireMicrophone, r.LockTab, r.DisableCopyPaste,
-            r.AiEvaluationEnabled, r.Instructions), ct);
+            r.AiEvaluationEnabled, r.Instructions, r.RequireIdentityVerification), ct);
     public Task<bool> PublishAsync(Guid examId, CancellationToken ct)
         => sender.Send(new PublishExam(examId), ct);
     public Task<Guid> AddQuestionAsync(Guid examId, AddQuestionRequest r, CancellationToken ct)
@@ -92,6 +94,13 @@ public sealed class ReportService(ISender sender) : IReportService
     }
     public Task<bool> ReviewAsync(Guid reportId, ReviewReportRequest r, CancellationToken ct)
         => sender.Send(new ReviewReport(reportId, r.Decision, r.Notes, r.Reviewer), ct);
+    public Task<int> PublishAsync(Guid examId, CancellationToken ct)
+        => sender.Send(new PublishResults(examId), ct);
+    public async Task<ResultResponse?> GetResultAsync(Guid attemptId, CancellationToken ct)
+    {
+        var r = await sender.Send(new GetMyResult(attemptId), ct);
+        return r;
+    }
 }
 
 public interface IIdentityService

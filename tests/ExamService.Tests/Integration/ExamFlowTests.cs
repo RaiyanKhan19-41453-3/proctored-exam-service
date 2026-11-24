@@ -159,4 +159,46 @@ public class ExamFlowTests(DbFixture fixture) : ExamTestBase(fixture)
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             Sender.Send(new StartAttempt(examId, token2, null, ClientMode.Browser)));
     }
+
+    [Fact]
+    public async Task Result_IsHiddenUntilPublished()
+    {
+        var (examId, mcqId, _) = await BuildExamAsync();
+        var token = await AssignAsync(examId, Guid.NewGuid());
+        var attemptId = await Sender.Send(new StartAttempt(examId, token));
+        await Sender.Send(new SaveAnswer(attemptId, mcqId, "{\"value\":\"b\"}"));
+        await Sender.Send(new SubmitAttempt(attemptId));
+        await Sender.Send(new GenerateReport(attemptId));
+
+        Assert.Null(await Sender.Send(new GetMyResult(attemptId)));
+        await Sender.Send(new PublishResults(examId));
+        var result = await Sender.Send(new GetMyResult(attemptId));
+        Assert.NotNull(result);
+        Assert.True(result.Published);
+    }
+
+    [Fact]
+    public async Task CandidateCannotAccessAnotherCandidatesAttempt()
+    {
+        var (examId, _, _) = await BuildExamAsync();
+        var id = await Sender.Send(new StartAttempt(examId, await AssignAsync(examId, Guid.NewGuid())));
+        Tenant.Roles = [];
+        Tenant.UserId = Guid.NewGuid();
+        var ex = await Assert.ThrowsAsync<AppException>(() => Sender.Send(new GetAttemptQuestions(id)));
+        Assert.Equal(403, ex.Status);
+    }
+
+    [Fact]
+    public async Task IdentityVerificationCanBeDisabledForBrowserExams()
+    {
+        var examId = await Sender.Send(new CreateExam("Browser exam", null, null, null, 20, 5,
+            true, false, true, true, false, null, false));
+        var question = await Sender.Send(new AddQuestion(examId, QuestionType.SingleChoice, "Q",
+            "[]", "{\"value\":\"a\"}", 5m, 1));
+        await Sender.Send(new PublishExam(examId));
+        var assignment = await Sender.Send(new CreateAssignment(examId, Guid.NewGuid(), "Browser", null, null));
+        await Sender.Send(new AcceptConsent(assignment.AssignmentId, true, "127.0.0.1"));
+        var id = await Sender.Send(new StartAttempt(examId, assignment.AttemptToken));
+        Assert.NotEqual(Guid.Empty, id);
+    }
 }

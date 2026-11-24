@@ -13,6 +13,7 @@ public interface ITenantContext
     Guid TenantId { get; }
     Guid? UserId { get; }
     string? UserEmail { get; }
+    IReadOnlyList<string> Roles { get; }
 }
 
 public interface IRequiresTenant;

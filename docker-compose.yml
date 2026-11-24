@@ -59,6 +59,7 @@ services:
       AI__Endpoint: ${AI_ENDPOINT:-}
       AI__ApiKey: ${AI_API_KEY:-}
       AI__Model: ${AI_MODEL:-local-heuristic}
+      AI__FaceEndpoint: ${AI_FACE_ENDPOINT:-}
     ports: ["${API_PORT:-18090}:8080"]
 
   web:

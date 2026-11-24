@@ -10,7 +10,7 @@ namespace ExamService.Application.Features.Exams;
 public sealed record CreateExam(string Title, string? Description, DateTimeOffset? StartUtc,
     DateTimeOffset? EndUtc, int DurationMinutes, decimal TotalMarks, bool RequireCamera,
     bool RequireMicrophone, bool LockTab, bool DisableCopyPaste, bool AiEvaluationEnabled,
-    string? Instructions) : IRequest<Guid>, IRequiresTenant;
+    string? Instructions, bool RequireIdentityVerification = true) : IRequest<Guid>, IRequiresTenant;
 
 public sealed class CreateExamValidator : AbstractValidator<CreateExam>
 {
@@ -33,7 +33,8 @@ public sealed class CreateExamHandler(IAppDbContext db, ITenantContext current) 
             TotalMarks = request.TotalMarks, RequireCamera = request.RequireCamera,
             RequireMicrophone = request.RequireMicrophone, LockTab = request.LockTab,
             DisableCopyPaste = request.DisableCopyPaste, AiEvaluationEnabled = request.AiEvaluationEnabled,
-            Instructions = request.Instructions, Status = ExamStatus.Draft
+            Instructions = request.Instructions, Status = ExamStatus.Draft,
+            RequireIdentityVerification = request.RequireIdentityVerification
         };
         db.Set<Exam>().Add(exam);
         await db.SaveChangesAsync(ct);

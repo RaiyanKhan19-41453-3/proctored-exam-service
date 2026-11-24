@@ -18,6 +18,7 @@ public sealed class Exam : TenantEntity
     public bool AiEvaluationEnabled { get; set; } = true;
     public string? Instructions { get; set; }
     // Switch-ready for a future kiosk client. false = any normal browser (current default).
+    public bool RequireIdentityVerification { get; set; } = true;
     public bool RequiresKiosk { get; set; }
     public int QuestionCount { get; set; }
 }
@@ -102,6 +103,7 @@ public sealed class EvaluationReport : TenantEntity
     public string? ReviewerNotes { get; set; }
     public Guid? ReviewedBy { get; set; }
     public DateTimeOffset? ReviewedAt { get; set; }
+    public DateTimeOffset? PublishedAt { get; set; }
 }
 
 public sealed class OutboxMessage : Entity

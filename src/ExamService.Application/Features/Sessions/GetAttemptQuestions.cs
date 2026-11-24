@@ -10,16 +10,19 @@ public sealed record GetAttemptQuestions(Guid AttemptId) : IRequest<IReadOnlyLis
 
 public sealed record AttemptQuestionDto(Guid QuestionId, string Text, string? OptionsJson, decimal Marks, int Order);
 
-public sealed class GetAttemptQuestionsHandler(IAppDbContext db)
+public sealed class GetAttemptQuestionsHandler(IAppDbContext db, ITenantContext current)
     : IRequestHandler<GetAttemptQuestions, IReadOnlyList<AttemptQuestionDto>>
 {
     public async Task<IReadOnlyList<AttemptQuestionDto>> Handle(GetAttemptQuestions request, CancellationToken ct)
-        => await (from link in db.Set<AttemptQuestion>()
+    {
+        await db.OwnedAsync(current, request.AttemptId, ct);
+        return await (from link in db.Set<AttemptQuestion>()
                   join q in db.Set<Question>() on link.QuestionId equals q.Id
                   where link.AttemptId == request.AttemptId
                   orderby link.Order
                   select new AttemptQuestionDto(q.Id, q.Text,
                       link.ShuffledOptionsJson ?? q.OptionsJson, q.Marks, link.Order)).ToListAsync(ct);
+    }
 }
 
 public sealed record ListAnomalyFlags(Guid ExamId) : IRequest<IReadOnlyList<FlagDto>>, IRequiresTenant;
