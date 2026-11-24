@@ -87,12 +87,22 @@ builder.Services.AddControllers();
 builder.Services.AddProductJwt(builder.Configuration);
 builder.Services.AddScoped<AppDbContextShim>();
 
-builder.Services.AddSingleton<IObjectStorage>(new MinioStorage(
-    builder.Configuration["Minio:Endpoint"] ?? "storage:9000",
-    builder.Configuration["Minio:AccessKey"] ?? "exam",
-    builder.Configuration["Minio:SecretKey"] ?? "exam",
-    builder.Configuration["Minio:Bucket"] ?? "exam-recordings",
-    builder.Configuration["Minio:PublicEndpoint"] ?? "http://localhost:9010"));
+if (string.Equals(builder.Configuration["Storage:Provider"], "s3", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<IObjectStorage>(new S3ObjectStorage(
+        builder.Configuration["AWS:Region"] ?? "us-east-1",
+        builder.Configuration["AWS:Bucket"] ?? "exam-recordings",
+        builder.Configuration["AWS:AccessKey"], builder.Configuration["AWS:SecretKey"]));
+}
+else
+{
+    builder.Services.AddSingleton<IObjectStorage>(new MinioStorage(
+        builder.Configuration["Minio:Endpoint"] ?? "storage:9000",
+        builder.Configuration["Minio:AccessKey"] ?? "exam",
+        builder.Configuration["Minio:SecretKey"] ?? "exam",
+        builder.Configuration["Minio:Bucket"] ?? "exam-recordings",
+        builder.Configuration["Minio:PublicEndpoint"] ?? "http://localhost:9010"));
+}
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IAiEvaluator, AiEvaluator>();
 builder.Services.AddSingleton<IEvidenceAnalyzer, EvidenceAnalyzer>();

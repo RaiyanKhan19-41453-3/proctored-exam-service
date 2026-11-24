@@ -37,6 +37,11 @@ services:
       Minio__SecretKey: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
       Minio__Bucket: exam-recordings
       Minio__PublicEndpoint: ${MINIO_PUBLIC_ENDPOINT:?MINIO_PUBLIC_ENDPOINT is required}
+      Storage__Provider: ${STORAGE_PROVIDER:-minio}
+      AWS__Region: ${AWS_REGION:-us-east-1}
+      AWS__Bucket: ${AWS_BUCKET:-exam-recordings}
+      AWS__AccessKey: ${AWS_ACCESS_KEY_ID:-}
+      AWS__SecretKey: ${AWS_SECRET_ACCESS_KEY:-}
       Jwt__Key: ${JWT_KEY:?JWT_KEY must match the main platform}
       Jwt__Issuer: ${JWT_ISSUER:-coaching-platform}
       Jwt__Audience: ${JWT_AUDIENCE:-coaching-web}

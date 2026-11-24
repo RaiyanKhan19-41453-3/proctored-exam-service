@@ -39,6 +39,15 @@ Set `RESULT_WEBHOOK=https://<main-api>/api/integrations/exam-results` here, and
 `EXAM_INTEGRATION_KEY=<shared-secret>` on the main platform. Results published here then create
 in-app notifications for candidates there.
 
+## Switching object storage to AWS S3
+
+Set `STORAGE_PROVIDER=s3`, `AWS_REGION`, `AWS_BUCKET`, plus an IAM role or
+`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`. The API selects the S3 implementation of
+`IObjectStorage` at startup; no image rebuild is needed. Copy existing objects from MinIO to the
+bucket (keys stay identical), configure bucket CORS for the web origin and presigned PUT/GET, and
+grant `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:ListBucket`. The MinIO container can
+then be stopped. `backup.sh` must be replaced with an S3 backup/versioning strategy.
+
 ## Backups
 
 ```bash

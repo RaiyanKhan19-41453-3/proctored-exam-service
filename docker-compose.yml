@@ -54,6 +54,11 @@ services:
       Minio__SecretKey: ${MINIO_ROOT_PASSWORD:-devstoragepassword}
       Minio__Bucket: exam-recordings
       Minio__PublicEndpoint: "http://localhost:${MINIO_PORT:-9010}"
+      Storage__Provider: ${STORAGE_PROVIDER:-minio}
+      AWS__Region: ${AWS_REGION:-us-east-1}
+      AWS__Bucket: ${AWS_BUCKET:-exam-recordings}
+      AWS__AccessKey: ${AWS_ACCESS_KEY_ID:-}
+      AWS__SecretKey: ${AWS_SECRET_ACCESS_KEY:-}
       Jwt__Key: ${JWT_KEY:-dev-only-signing-key-change-this-in-production-1234}
       Cors__Origin: ${CORS_ORIGIN:-http://localhost:13010}
       AI__Endpoint: ${AI_ENDPOINT:-}
