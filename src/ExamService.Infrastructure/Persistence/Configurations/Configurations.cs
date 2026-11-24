@@ -112,3 +112,32 @@ public sealed class EvidenceConfig() : TenantConfig<Evidence>("Evidence")
         b.HasIndex(e => new { e.AttemptId, e.Kind, e.CapturedAt });
     }
 }
+
+public sealed class AttemptQuestionConfig() : TenantConfig<AttemptQuestion>("AttemptQuestions")
+{
+    public override void Configure(EntityTypeBuilder<AttemptQuestion> b)
+    {
+        base.Configure(b);
+        b.HasIndex(e => new { e.AttemptId, e.Order }).IsUnique();
+    }
+}
+
+public sealed class AttemptContextConfig() : TenantConfig<AttemptContextRecord>("AttemptContexts")
+{
+    public override void Configure(EntityTypeBuilder<AttemptContextRecord> b)
+    {
+        base.Configure(b);
+        b.HasIndex(e => new { e.AttemptId, e.CapturedAt });
+        b.HasIndex(e => e.DeviceFingerprint);
+        b.HasIndex(e => e.IpAddress);
+    }
+}
+
+public sealed class AnomalyFlagConfig() : TenantConfig<AnomalyFlag>("AnomalyFlags")
+{
+    public override void Configure(EntityTypeBuilder<AnomalyFlag> b)
+    {
+        base.Configure(b);
+        b.HasIndex(e => new { e.ExamId, e.Kind });
+    }
+}

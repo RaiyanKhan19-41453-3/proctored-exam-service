@@ -42,5 +42,6 @@ public sealed record UploadUrlResponse(string Url, string Key, DateTimeOffset Ex
 public sealed record StoreEvidenceRequest(EvidenceKind Kind, string ContentType, long SizeBytes,
     string? Checksum, string? DetailJson);
 public sealed record EvidenceResponse(Guid Id, EvidenceKind Kind, string Url, DateTimeOffset CapturedAt);
-public sealed record AttemptTokenRequest(string Token);
+public sealed record AttemptTokenRequest(string Token, string? IpAddress = null, ClientMode ClientMode = ClientMode.Browser, string? AttestationJson = null);
 public sealed record FaceEventRequest(byte[] Frame);
+public sealed record FlagResponse(Guid Id, FlagKind Kind, decimal Score, string? DetailJson, bool Reviewed);

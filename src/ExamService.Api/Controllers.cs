@@ -1,7 +1,10 @@
 using ExamService.Application.DTOs;
 using ExamService.Application.Features;
+using ExamService.Application.Features.Sessions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ExamService.Application.Common;
+using ExamService.Domain.Common;
 
 namespace ExamService.Api;
 
@@ -36,7 +39,7 @@ public sealed class ExamsController(IExamService exams) : ControllerBase
 [Route("api/attempts")]
 [Authorize]
 [Produces("application/json")]
-public sealed class AttemptsController(IAttemptService attempts) : ControllerBase
+public sealed class AttemptsController(IAttemptService attempts, MediatR.ISender sender) : ControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> Start([FromQuery] Guid examId,
@@ -47,6 +50,10 @@ public sealed class AttemptsController(IAttemptService attempts) : ControllerBas
     public async Task<IActionResult> SaveAnswer([FromRoute] Guid id,
         [FromBody] SaveAnswerRequest request, CancellationToken ct)
         => Ok(new { saved = await attempts.SaveAnswerAsync(id, request, ct) });
+
+    [HttpGet("{id:guid}/questions")]
+    public async Task<IActionResult> Questions([FromRoute] Guid id, CancellationToken ct)
+        => Ok(await sender.Send(new GetAttemptQuestions(id), ct));
 
     [HttpPost("{id:guid}/submit")]
     public async Task<IActionResult> Submit([FromRoute] Guid id, CancellationToken ct)
@@ -141,4 +148,56 @@ public sealed class EvidenceController(MediatR.ISender sender) : ControllerBase
     [HttpGet("{id:guid}/url")]
     public async Task<IActionResult> GetUrl([FromRoute] Guid id, CancellationToken ct)
         => Ok(new { url = await sender.Send(new ExamService.Application.Features.Evidence.GetEvidenceUrl(id), ct) });
+}
+
+[ApiController]
+[Route("api/proctor")]
+[Authorize]
+[Produces("application/json")]
+public sealed class ProctorController(IAnomalyService anomalies, MediatR.ISender sender) : ControllerBase
+{
+    [HttpPost("attempts/{attemptId:guid}/context")]
+    public async Task<IActionResult> Context([FromRoute] Guid attemptId,
+        [FromBody] AttemptContextInput input, CancellationToken ct)
+        => Ok(new { recorded = await anomalies.RecordContextAsync(attemptId, input, ct) });
+
+    [HttpPost("exams/{examId:guid}/detect")]
+    public async Task<IActionResult> Detect([FromRoute] Guid examId, CancellationToken ct)
+        => Ok(new { flagsCreated = await anomalies.DetectAsync(examId, ct) });
+
+    [HttpGet("exams/{examId:guid}/flags")]
+    public async Task<IActionResult> Flags([FromRoute] Guid examId, CancellationToken ct)
+        => Ok(await sender.Send(new ListAnomalyFlags(examId), ct));
+
+    [HttpPost("flags/{flagId:guid}/review")]
+    public async Task<IActionResult> Review([FromRoute] Guid flagId, [FromQuery] bool reviewed, CancellationToken ct)
+        => Ok(new { reviewed = await sender.Send(new ReviewFlag(flagId, reviewed), ct) });
+
+    [HttpGet("exams/{examId:guid}/events")]
+    public async Task<IActionResult> Events([FromRoute] Guid examId, CancellationToken ct)
+    {
+        var events = await sender.Send(new ProctorHistory(examId), ct);
+        return Ok(events);
+    }
+}
+
+public sealed record ProctorHistory(Guid ExamId) : MediatR.IRequest<IReadOnlyList<ProctorHistoryItem>>;
+
+public sealed record ProctorHistoryItem(Guid AttemptId, string CandidateName, string Type,
+    string Severity, DateTimeOffset At, string? Detail);
+
+public sealed class ProctorHistoryHandler(Infrastructure.Persistence.AppDbContext db)
+    : MediatR.IRequestHandler<ProctorHistory, IReadOnlyList<ProctorHistoryItem>>
+{
+    public async Task<IReadOnlyList<ProctorHistoryItem>> Handle(ProctorHistory request, CancellationToken ct)
+    {
+        IQueryable<ProctorHistoryItem> query =
+            from e in db.ProctorEvents
+            join a in db.Attempts on e.AttemptId equals a.Id
+            where a.ExamId == request.ExamId
+            orderby e.OccurredAt descending
+            select new ProctorHistoryItem(a.Id, a.CandidateName, e.EventType.ToString(),
+                e.Severity.ToString(), e.OccurredAt, e.DetailJson);
+        return await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(query.Take(500), ct);
+    }
 }

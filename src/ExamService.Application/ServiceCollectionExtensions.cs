@@ -2,9 +2,11 @@ using System.Reflection;
 using ExamService.Application.Common;
 using ExamService.Application.Features;
 using ExamService.Application.Features.Exams;
+using ExamService.Application.Features.Anomalies;
 using ExamService.Application.Features.Identity;
 using ExamService.Application.Features.Reports;
 using ExamService.Application.Features.Sessions;
+using ExamService.Application.Features.Evidence;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IReportService, Features.ReportService>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IEvidenceService, EvidenceService>();
+        services.AddScoped<IAnomalyService, AnomalyService>();
         return services;
     }
 }

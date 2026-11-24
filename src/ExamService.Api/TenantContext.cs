@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using ExamService.Application.Common;
 using ExamService.Infrastructure.Persistence;
 
-using ExamService.Application.Common;
 
 namespace ExamService.Api;
 

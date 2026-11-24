@@ -1,10 +1,11 @@
 using ExamService.Application.Common;
 using ExamService.Application.DTOs;
 using ExamService.Application.Features.Evidence;
+using ExamService.Application.Features.Sessions;
 using ExamService.Application.Features.Exams;
+using ExamService.Application.Features.Anomalies;
 using ExamService.Application.Features.Identity;
 using ExamService.Application.Features.Reports;
-using ExamService.Application.Features.Sessions;
 using MediatR;
 
 namespace ExamService.Application.Features;
@@ -57,7 +58,7 @@ public sealed class ExamService(ISender sender) : IExamService
 public sealed class AttemptService(ISender sender, IObjectStorage storage, ITenantContext tenant) : IAttemptService
 {
     public Task<Guid> StartAsync(Guid examId, AttemptTokenRequest r, CancellationToken ct)
-        => sender.Send(new StartAttempt(examId, r.Token), ct);
+        => sender.Send(new StartAttempt(examId, r.Token, r.IpAddress, r.ClientMode, r.AttestationJson), ct);
     public Task<bool> SaveAnswerAsync(Guid attemptId, SaveAnswerRequest r, CancellationToken ct)
         => sender.Send(new SaveAnswer(attemptId, r.QuestionId, r.ResponseJson), ct);
     public Task<Guid> SubmitAsync(Guid attemptId, CancellationToken ct)
@@ -118,4 +119,18 @@ public sealed class EvidenceService(ISender sender) : IEvidenceService
 {
     public Task<Guid> StoreAsync(Guid attemptId, StoreEvidenceRequest r, byte[] data, CancellationToken ct)
         => sender.Send(new StoreEvidence(attemptId, r, data), ct);
+}
+
+public interface IAnomalyService
+{
+    Task<bool> RecordContextAsync(Guid attemptId, AttemptContextInput input, CancellationToken ct = default);
+    Task<int> DetectAsync(Guid examId, CancellationToken ct = default);
+}
+
+public sealed class AnomalyService(ISender sender) : IAnomalyService
+{
+    public Task<bool> RecordContextAsync(Guid attemptId, AttemptContextInput input, CancellationToken ct)
+        => sender.Send(new RecordAttemptContext(attemptId, input), ct);
+    public Task<int> DetectAsync(Guid examId, CancellationToken ct)
+        => sender.Send(new DetectAnomalies(examId), ct);
 }

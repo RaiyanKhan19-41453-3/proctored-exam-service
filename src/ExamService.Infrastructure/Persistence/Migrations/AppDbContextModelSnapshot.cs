@@ -22,6 +22,53 @@ namespace ExamService.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("ExamService.Domain.Entities.AnomalyFlag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AttemptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DetailJson")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ExamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("OtherAttemptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Reviewed")
+                        .HasColumnType("boolean");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<decimal>("Score")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExamId", "Kind");
+
+                    b.ToTable("AnomalyFlags", (string)null);
+                });
+
             modelBuilder.Entity("ExamService.Domain.Entities.Answer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -68,6 +115,96 @@ namespace ExamService.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Answers", (string)null);
+                });
+
+            modelBuilder.Entity("ExamService.Domain.Entities.AttemptContextRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AttemptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CapturedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("City")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CountryCode")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DeviceFingerprint")
+                        .HasColumnType("text");
+
+                    b.Property<string>("IpAddress")
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceFingerprint");
+
+                    b.HasIndex("IpAddress");
+
+                    b.HasIndex("AttemptId", "CapturedAt");
+
+                    b.ToTable("AttemptContexts", (string)null);
+                });
+
+            modelBuilder.Entity("ExamService.Domain.Entities.AttemptQuestion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AttemptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("QuestionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("ShuffledOptionsJson")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttemptId", "Order")
+                        .IsUnique();
+
+                    b.ToTable("AttemptQuestions", (string)null);
                 });
 
             modelBuilder.Entity("ExamService.Domain.Entities.EvaluationReport", b =>
@@ -225,10 +362,16 @@ namespace ExamService.Infrastructure.Persistence.Migrations
                     b.Property<bool>("LockTab")
                         .HasColumnType("boolean");
 
+                    b.Property<int>("QuestionCount")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("RequireCamera")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("RequireMicrophone")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequiresKiosk")
                         .HasColumnType("boolean");
 
                     b.Property<byte[]>("RowVersion")
@@ -335,12 +478,18 @@ namespace ExamService.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AttestationJson")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("CandidateId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("CandidateName")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("ClientMode")
+                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -359,6 +508,9 @@ namespace ExamService.Infrastructure.Persistence.Migrations
 
                     b.Property<decimal>("MaxScore")
                         .HasColumnType("numeric");
+
+                    b.Property<string>("RandomizationSeed")
+                        .HasColumnType("text");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()

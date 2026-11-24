@@ -9,8 +9,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ExamService.Application.Features.Sessions;
 
-public sealed record StartAttempt(Guid ExamId, string AttemptToken, string? IpAddress = null)
-    : IRequest<Guid>, IRequiresTenant;
+public sealed record StartAttempt(Guid ExamId, string AttemptToken, string? IpAddress = null,
+    ClientMode ClientMode = ClientMode.Browser, string? AttestationJson = null) : IRequest<Guid>, IRequiresTenant;
 
 public sealed class StartAttemptValidator : AbstractValidator<StartAttempt>
 {
@@ -46,6 +46,9 @@ public sealed class StartAttemptHandler(IAppDbContext db, ITenantContext current
         if (exam.StartUtc.HasValue && now < exam.StartUtc.Value) throw new InvalidOperationException("Exam has not started.");
         if (exam.EndUtc.HasValue && now > exam.EndUtc.Value) throw new InvalidOperationException("Exam has ended.");
 
+        if (exam.RequiresKiosk && request.ClientMode != ClientMode.Kiosk)
+            throw new UnauthorizedAccessException("This exam requires the secure kiosk client.");
+
         var existing = await db.Set<ExamAttempt>().FirstOrDefaultAsync(a =>
             a.ExamId == exam.Id && a.CandidateId == assignment.CandidateId &&
             a.Status == AttemptStatus.InProgress, ct);
@@ -56,8 +59,23 @@ public sealed class StartAttemptHandler(IAppDbContext db, ITenantContext current
         var attempt = new ExamAttempt
         {
             TenantId = current.TenantId, ExamId = exam.Id, CandidateId = assignment.CandidateId,
-            CandidateName = assignment.CandidateName, StartedAt = now, MaxScore = questions.Sum(q => q.Marks)
+            CandidateName = assignment.CandidateName, StartedAt = now, MaxScore = questions.Sum(q => q.Marks),
+            ClientMode = request.ClientMode, AttestationJson = request.AttestationJson,
+            RandomizationSeed = $"{assignment.Id:N}{Guid.NewGuid():N}"
         };
+        // Server-side randomization: order and option order are stored per attempt.
+        var rng = new Random(attempt.RandomizationSeed!.GetHashCode());
+        var ordered = questions.OrderBy(_ => rng.Next()).ToList();
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var question = await db.Set<Question>().FirstAsync(q => q.Id == ordered[i].Id, ct);
+            db.Set<AttemptQuestion>().Add(new AttemptQuestion
+            {
+                TenantId = current.TenantId, AttemptId = attempt.Id,
+                QuestionId = question.Id, Order = i + 1,
+                ShuffledOptionsJson = QuestionShuffler.ShuffleOptions(question.OptionsJson, rng)
+            });
+        }
         db.Set<ExamAttempt>().Add(attempt);
         db.Set<OutboxMessage>().Add(new OutboxMessage
         {
@@ -166,7 +184,8 @@ public sealed class SubmitAttemptHandler(IAppDbContext db, ITenantContext curren
 public sealed record RecordProctorEvent(Guid AttemptId, EventType Type, Domain.Common.Severity Severity, string? DetailJson,
     string? SnapshotKey) : IRequest<bool>, IRequiresTenant;
 
-public sealed class RecordProctorEventHandler(IAppDbContext db, ITenantContext current) : IRequestHandler<RecordProctorEvent, bool>
+public sealed class RecordProctorEventHandler(IAppDbContext db, ITenantContext current, IProctorNotifier notifier)
+    : IRequestHandler<RecordProctorEvent, bool>
 {
     public async Task<bool> Handle(RecordProctorEvent request, CancellationToken ct)
     {
@@ -180,6 +199,32 @@ public sealed class RecordProctorEventHandler(IAppDbContext db, ITenantContext c
         });
         attempt.ViolationCount++;
         await db.SaveChangesAsync(ct);
+        await notifier.PublishEventAsync(current.TenantId, attempt.ExamId, attempt.Id, new
+        {
+            attemptId = attempt.Id, examId = attempt.ExamId,
+            type = request.Type.ToString(), severity = request.Severity.ToString(),
+            at = DateTimeOffset.UtcNow, detail = request.DetailJson
+        }, ct);
         return true;
+    }
+}
+
+public static class QuestionShuffler
+{
+    public static string? ShuffleOptions(string? optionsJson, Random rng)
+    {
+        if (string.IsNullOrWhiteSpace(optionsJson)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(optionsJson);
+            var list = doc.RootElement.EnumerateArray().Select(x => x.Clone()).ToList();
+            for (var i = list.Count - 1; i > 0; i--)
+            {
+                var j = rng.Next(i + 1);
+                (list[i], list[j]) = (list[j], list[i]);
+            }
+            return JsonSerializer.Serialize(list);
+        }
+        catch (JsonException) { return optionsJson; }
     }
 }

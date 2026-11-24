@@ -3,6 +3,7 @@ using ExamService.Application.Features.Reports;
 using Hangfire;
 using ExamService.Domain.Common;
 using ExamService.Application.Features.Sessions;
+using ExamService.Application.Features.Anomalies;
 using ExamService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -45,5 +46,22 @@ public sealed class DeadlineWorker(IServiceScopeFactory scopes, ILogger<Deadline
         var sender = scope.ServiceProvider.GetRequiredService<MediatR.ISender>();
         var count = await sender.Send(new ExpireAttempts());
         if (count > 0) logger.LogInformation("Auto-submitted {Count} expired attempts", count);
+    }
+}
+
+public sealed class AnomalyWorker(IServiceScopeFactory scopes, ILogger<AnomalyWorker> logger)
+{
+    public async Task DetectAllAsync()
+    {
+        using var scope = scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContextShim>().Context;
+        var sender = scope.ServiceProvider.GetRequiredService<MediatR.ISender>();
+        var exams = await db.Exams.Where(e => e.Status == ExamStatus.Published)
+            .Select(e => e.Id).ToListAsync();
+        foreach (var exam in exams)
+        {
+            try { await sender.Send(new DetectAnomalies(exam)); }
+            catch (Exception ex) { logger.LogError(ex, "Anomaly detection failed for exam {Id}", exam); }
+        }
     }
 }

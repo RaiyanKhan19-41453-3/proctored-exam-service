@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Proctor from './Proctor';
 
 // Must match ExamService.Domain.Common.EventType / Severity on the server.
 const EV = { TabBlur: 2, Copy: 3, Paste: 4, FullscreenExit: 6, CameraBlocked: 7,
@@ -25,6 +26,7 @@ export default function App() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [reports, setReports] = useState<Report[]>([]);
   const [error, setError] = useState('');
+  const [proctorOn, setProctorOn] = useState(false);
   const [violations, setViolations] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -186,7 +188,10 @@ export default function App() {
             <input value={assignmentId} onChange={e => setAssignmentId(e.target.value)} placeholder="Assignment ID" />
             <button onClick={loadExam}>Load</button>
             <button onClick={() => void loadReports()}>Reports</button>
+            <button onClick={() => setProctorOn(v => !v)}>{proctorOn ? 'Hide live proctor' : 'Open live proctor'}</button>
           </section>
+
+          {proctorOn && <Proctor token={token} examId={examId} />}
 
           {exam && (
             <section className="card">

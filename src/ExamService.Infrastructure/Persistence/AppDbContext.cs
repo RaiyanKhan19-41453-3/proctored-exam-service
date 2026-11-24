@@ -25,6 +25,9 @@ public sealed class AppDbContext : DbContext, IAppDbContext
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<ExamAssignment> Assignments => Set<ExamAssignment>();
     public DbSet<Evidence> Evidence => Set<Evidence>();
+    public DbSet<AttemptQuestion> AttemptQuestions => Set<AttemptQuestion>();
+    public DbSet<AttemptContextRecord> AttemptContexts => Set<AttemptContextRecord>();
+    public DbSet<AnomalyFlag> AnomalyFlags => Set<AnomalyFlag>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

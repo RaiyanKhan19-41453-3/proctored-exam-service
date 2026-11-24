@@ -1,5 +1,6 @@
 using ExamService.Application.Common;
 using ExamService.Infrastructure.Ai;
+using ExamService.Application.Features;
 using ExamService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -65,6 +66,7 @@ public abstract class ExamTestBase(DbFixture fixture) : IAsyncLifetime
         services.AddApplication();
         services.AddSingleton<ITenantContext>(Tenant);
         services.AddSingleton<IObjectStorage, NoopStorage>();
+        services.AddSingleton<ExamService.Application.Common.IProctorNotifier, NoopNotifier>();
         services.AddSingleton<IAiEvaluator>(new AiEvaluator(config, new HttpClient()));
         services.AddSingleton<IEvidenceAnalyzer>(new EvidenceAnalyzer(config, new HttpClient()));
         services.AddSingleton(config);
@@ -77,4 +79,10 @@ public abstract class ExamTestBase(DbFixture fixture) : IAsyncLifetime
     }
 
     public async Task DisposeAsync() => await Services.DisposeAsync();
+}
+
+public sealed class NoopNotifier : ExamService.Application.Common.IProctorNotifier
+{
+    public Task PublishEventAsync(Guid tenantId, Guid examId, Guid attemptId, object payload, CancellationToken ct = default) => Task.CompletedTask;
+    public Task PublishFlagAsync(Guid tenantId, Guid examId, object payload, CancellationToken ct = default) => Task.CompletedTask;
 }

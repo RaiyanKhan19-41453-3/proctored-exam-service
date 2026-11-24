@@ -30,6 +30,12 @@ docker compose up -d --build
   score from proctor events, recommended decision (Approved/Flagged/Rejected). Examiner reviews
   only flagged reports. Works with an OpenAI-compatible endpoint (`AI__Endpoint`) or a local
   deterministic heuristic when none is configured.
+- Server-side question and option randomization per attempt
+- Device/IP/geo anomaly detection and answer-similarity (plagiarism) flags across candidates
+- Live proctor dashboard over SignalR (Redis backplane) with real-time events and flags
+- **Kiosk-ready, not kiosk-only**: `Exam.RequiresKiosk` defaults to false, so any normal browser
+  works today. When a secure kiosk client is introduced later, flip the flag and send a
+  kiosk attestation at attempt start — no backend rewrite needed.
 - Tenant isolation via EF global query filters
 - Hangfire worker auto-generates reports for submitted attempts
 - OpenAPI + Scalar, health checks, tests with Testcontainers

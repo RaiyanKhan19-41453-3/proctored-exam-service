@@ -5,6 +5,7 @@ using ExamService.Application.Features.Identity;
 using ExamService.Application.Common;
 using ExamService.Infrastructure.Ai;
 using ExamService.Application.Features.Sessions;
+using ExamService.Application.Features.Anomalies;
 using ExamService.Infrastructure.Persistence;
 using ExamService.Infrastructure.Storage;
 using Hangfire;
@@ -42,7 +43,12 @@ builder.Services.AddSingleton<IEvidenceAnalyzer, EvidenceAnalyzer>();
 builder.Services.AddHealthChecks().AddCheck<DbHealthCheck>("db", tags: ["ready"]);
 builder.Services.AddSingleton(new DbHealthCheck(connection));
 
-builder.Services.AddSignalR();
+var signalR = builder.Services.AddSignalR();
+var signalRRedis = builder.Configuration["Redis:ConnectionString"];
+if (!string.IsNullOrWhiteSpace(signalRRedis))
+    signalR.AddStackExchangeRedis(signalRRedis!,
+        o => o.Configuration.ChannelPrefix = StackExchange.Redis.RedisChannel.Literal("exam-proctor:"));
+builder.Services.AddSingleton<IProctorNotifier, ProctorNotifier>();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(o => o.AddPolicy("web", p => p
     .WithOrigins(builder.Configuration["Cors:Origin"] ?? "http://localhost:13010")
@@ -60,6 +66,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseCors("web");
 app.MapControllers();
+app.MapHub<ProctorHub>("/hubs/proctor").RequireAuthorization();
 app.MapOpenApi();
 app.MapScalarApiReference();
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = c => c.Tags.Contains("ready") });
@@ -77,6 +84,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 var recurring = app.Services.GetRequiredService<IRecurringJobManager>();
+recurring.AddOrUpdate<AnomalyWorker>("detect-anomalies", w => w.DetectAllAsync(), "*/5 * * * *");
 recurring.AddOrUpdate<DeadlineWorker>("expire-attempts", w => w.ExpireAsync(), "*/1 * * * * *");
 recurring.AddOrUpdate<ReportWorker>("generate-reports", w => w.GeneratePendingAsync(), "*/1 * * * *");
 app.Run();

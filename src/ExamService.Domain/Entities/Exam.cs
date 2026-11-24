@@ -17,6 +17,9 @@ public sealed class Exam : TenantEntity
     public bool DisableCopyPaste { get; set; } = true;
     public bool AiEvaluationEnabled { get; set; } = true;
     public string? Instructions { get; set; }
+    // Switch-ready for a future kiosk client. false = any normal browser (current default).
+    public bool RequiresKiosk { get; set; }
+    public int QuestionCount { get; set; }
 }
 
 public sealed class Question : TenantEntity
@@ -38,6 +41,9 @@ public sealed class ExamAttempt : TenantEntity
     public AttemptStatus Status { get; set; } = AttemptStatus.InProgress;
     public DateTimeOffset StartedAt { get; set; }
     public DateTimeOffset? SubmittedAt { get; set; }
+    public ClientMode ClientMode { get; set; } = ClientMode.Browser;
+    public string? AttestationJson { get; set; }
+    public string? RandomizationSeed { get; set; }
     public decimal? Score { get; set; }
     public decimal MaxScore { get; set; }
     public bool Disqualified { get; set; }
@@ -137,4 +143,34 @@ public sealed class Evidence : TenantEntity
     public DateTimeOffset CapturedAt { get; set; }
     public string? DetailJson { get; set; }
     public DateTimeOffset? ExpiresAt { get; set; }
+}
+
+public sealed class AttemptQuestion : TenantEntity
+{
+    public Guid AttemptId { get; set; }
+    public Guid QuestionId { get; set; }
+    public int Order { get; set; }
+    public string? ShuffledOptionsJson { get; set; }
+}
+
+public sealed class AttemptContextRecord : TenantEntity
+{
+    public Guid AttemptId { get; set; }
+    public string? IpAddress { get; set; }
+    public string? UserAgent { get; set; }
+    public string? DeviceFingerprint { get; set; }
+    public string? CountryCode { get; set; }
+    public string? City { get; set; }
+    public DateTimeOffset CapturedAt { get; set; }
+}
+
+public sealed class AnomalyFlag : TenantEntity
+{
+    public Guid ExamId { get; set; }
+    public Guid? AttemptId { get; set; }
+    public Guid? OtherAttemptId { get; set; }
+    public FlagKind Kind { get; set; }
+    public decimal Score { get; set; }
+    public string? DetailJson { get; set; }
+    public bool Reviewed { get; set; }
 }

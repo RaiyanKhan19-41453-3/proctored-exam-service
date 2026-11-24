@@ -2,8 +2,8 @@ using ExamService.Application.Common;
 using ExamService.Application.Features.Exams;
 using ExamService.Application.Features.Identity;
 using ExamService.Application.Features.Sessions;
+using ExamService.Application.Features.Anomalies;
 using ExamService.Application.Features.Reports;
-using ExamService.Application.Features.Sessions;
 using ExamService.Domain.Common;
 using ExamService.Tests.Fixtures;
 using Microsoft.EntityFrameworkCore;
@@ -107,5 +107,56 @@ public class ExamFlowTests(DbFixture fixture) : ExamTestBase(fixture)
         var updated = await Db.Attempts.SingleAsync(a => a.Id == attemptId);
         Assert.Equal(AttemptStatus.UnderReview, updated.Status);
         Assert.NotNull(updated.SubmittedAt);
+    }
+
+    [Fact]
+    public async Task Randomization_CreatesPerAttemptQuestionOrder()
+    {
+        var (examId, _, _) = await BuildExamAsync();
+        var token = await AssignAsync(examId, Guid.NewGuid());
+        var attemptId = await Sender.Send(new StartAttempt(examId, token));
+        var links = await Db.AttemptQuestions.Where(a => a.AttemptId == attemptId).ToListAsync();
+        Assert.Equal(2, links.Count);
+        Assert.Equal(new[] { 1, 2 }, links.Select(l => l.Order).OrderBy(x => x));
+        var questions = await Sender.Send(new GetAttemptQuestions(attemptId));
+        Assert.Equal(2, questions.Count);
+    }
+
+    [Fact]
+    public async Task Anomalies_DetectSharedDeviceAndSimilarAnswers()
+    {
+        var (examId, mcqId, _) = await BuildExamAsync();
+        var device = "device-abc";
+        var a1 = await Sender.Send(new StartAttempt(examId, await AssignAsync(examId, Guid.NewGuid())));
+        var a2 = await Sender.Send(new StartAttempt(examId, await AssignAsync(examId, Guid.NewGuid())));
+        foreach (var id in new[] { a1, a2 })
+        {
+            await Sender.Send(new RecordAttemptContext(id, new AttemptContextInput(
+                "10.0.0.1", "UA", device, "US", "X")));
+            await Sender.Send(new SaveAnswer(id, mcqId, "{\"value\":\"b\"}"));
+            await Sender.Send(new SubmitAttempt(id));
+        }
+
+        var count = await Sender.Send(new DetectAnomalies(examId));
+        Assert.True(count >= 2);
+        var flags = await Sender.Send(new ListAnomalyFlags(examId));
+        Assert.Contains(flags, f => f.Kind == FlagKind.SharedDevice);
+        Assert.Contains(flags, f => f.Kind == FlagKind.AnswerSimilarity);
+    }
+
+    [Fact]
+    public async Task Kiosk_IsOptionalByDefault()
+    {
+        var (examId, _, _) = await BuildExamAsync(); // RequiresKiosk = false
+        var token = await AssignAsync(examId, Guid.NewGuid());
+        var id = await Sender.Send(new StartAttempt(examId, token, null, ClientMode.Browser));
+        Assert.NotEqual(Guid.Empty, id);
+
+        var exam = await Db.Exams.SingleAsync(e => e.Id == examId);
+        exam.RequiresKiosk = true;
+        await Db.SaveChangesAsync();
+        var token2 = await AssignAsync(examId, Guid.NewGuid());
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            Sender.Send(new StartAttempt(examId, token2, null, ClientMode.Browser)));
     }
 }
