@@ -33,6 +33,14 @@ public sealed class MinioStorage : IObjectStorage
         => _signing.PresignedGetObjectAsync(new PresignedGetObjectArgs()
             .WithBucket(_bucket).WithObject(key).WithExpiry((int)expiry.TotalSeconds));
 
+    public Task PutAsync(string key, byte[] data, string contentType, CancellationToken ct)
+    {
+        using var stream = new MemoryStream(data);
+        return _client.PutObjectAsync(new PutObjectArgs()
+            .WithBucket(_bucket).WithObject(key).WithStreamData(stream)
+            .WithObjectSize(data.Length).WithContentType(contentType), ct);
+    }
+
     public Task RemoveAsync(string key, CancellationToken ct)
         => _client.RemoveObjectAsync(new RemoveObjectArgs().WithBucket(_bucket).WithObject(key), ct);
 

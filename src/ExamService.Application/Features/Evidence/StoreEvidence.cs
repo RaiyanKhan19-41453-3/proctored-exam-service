@@ -24,7 +24,7 @@ public sealed class StoreEvidenceValidator : AbstractValidator<StoreEvidence>
 }
 
 public sealed class StoreEvidenceHandler(IAppDbContext db, IObjectStorage storage, ITenantContext current,
-    IEvidenceAnalyzer analyzer, HttpClient http) : IRequestHandler<StoreEvidence, Guid>
+    IEvidenceAnalyzer analyzer) : IRequestHandler<StoreEvidence, Guid>
 {
     public async Task<Guid> Handle(StoreEvidence request, CancellationToken ct)
     {
@@ -37,11 +37,7 @@ public sealed class StoreEvidenceHandler(IAppDbContext db, IObjectStorage storag
         var ext = kind is EvidenceKind.CameraChunk or EvidenceKind.IdentitySelfie or EvidenceKind.RoomScan or EvidenceKind.ScreenChunk
             ? "jpg" : "webm";
         var key = $"{current.TenantId:N}/attempts/{attempt.Id:N}/{kind}/{Guid.NewGuid():N}.{ext}";
-        var url = await storage.PresignUploadAsync(key, request.Request.ContentType, TimeSpan.FromMinutes(10), ct);
-        using var content = new ByteArrayContent(data);
-        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(request.Request.ContentType);
-        var put = await http.PutAsync(url, content, ct);
-        if (!put.IsSuccessStatusCode) throw new AppException("Evidence upload failed.", 502);
+        await storage.PutAsync(key, data, request.Request.ContentType, ct);
 
         var checksum = request.Request.Checksum ?? Convert.ToHexString(SHA256.HashData(data));
         var evidence = new Domain.Entities.Evidence

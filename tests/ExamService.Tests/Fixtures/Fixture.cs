@@ -49,6 +49,7 @@ public sealed class NoopStorage : IObjectStorage
         => Task.FromResult("https://storage.test/download");
     public Task<bool> ExistsAsync(string key, CancellationToken ct = default) => Task.FromResult(true);
     public Task RemoveAsync(string key, CancellationToken ct = default) => Task.CompletedTask;
+    public Task PutAsync(string key, byte[] data, string contentType, CancellationToken ct = default) => Task.CompletedTask;
 }
 
 [Collection("exam")]

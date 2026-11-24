@@ -91,12 +91,8 @@ public sealed class VerifyIdentityHandler(IAppDbContext db, IObjectStorage stora
             return new IdentityVerificationDto(false, null, "Identity photo is missing.");
 
         var key = $"{assignment.TenantId:N}/identity/{assignment.Id:N}/{Guid.NewGuid():N}.jpg";
-        var url = await storage.PresignUploadAsync(key, "image/jpeg", TimeSpan.FromMinutes(5), ct);
-        using var content = new ByteArrayContent(request.Selfie);
-        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
-        var put = await http.PutAsync(url, content, ct);
-        if (!put.IsSuccessStatusCode)
-            return new IdentityVerificationDto(false, null, "Could not upload verification selfie.");
+        try { await storage.PutAsync(key, request.Selfie, "image/jpeg", ct); }
+        catch (Exception) { return new IdentityVerificationDto(false, null, "Could not upload verification selfie."); }
 
         db.Set<Domain.Entities.Evidence>().Add(new Domain.Entities.Evidence
         {
