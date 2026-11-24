@@ -60,6 +60,11 @@ services:
       AI__ApiKey: ${AI_API_KEY:-}
       AI__Model: ${AI_MODEL:-local-heuristic}
       AI__FaceEndpoint: ${AI_FACE_ENDPOINT:-}
+      RateLimit__PerMinute: ${RATE_LIMIT_PER_MINUTE:-600}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-}
+      Notifications__Webhook: ${RESULT_WEBHOOK:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports: ["${API_PORT:-18090}:8080"]
 
   web:

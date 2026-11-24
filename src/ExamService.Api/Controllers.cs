@@ -51,6 +51,11 @@ public sealed class AttemptsController(IAttemptService attempts, MediatR.ISender
         [FromBody] SaveAnswerRequest request, CancellationToken ct)
         => Ok(new { saved = await attempts.SaveAnswerAsync(id, request, ct) });
 
+    [HttpPost("{id:guid}/report")]
+    public async Task<IActionResult> GenerateReport([FromRoute] Guid id,
+        [FromServices] IReportService reports, CancellationToken ct)
+        => Ok(new { reportId = await reports.GenerateAsync(id, ct) });
+
     [HttpGet("{id:guid}/questions")]
     public async Task<IActionResult> Questions([FromRoute] Guid id, CancellationToken ct)
         => Ok(await sender.Send(new GetAttemptQuestions(id), ct));

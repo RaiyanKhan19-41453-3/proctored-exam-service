@@ -48,5 +48,6 @@ public static class EventTypes
 {
     public const string AttemptStarted = "exam.attempt_started";
     public const string AttemptSubmitted = "exam.attempt_submitted";
+    public const string ResultsPublished = "exam.results_published";
     public const string ProctorEvent = "exam.proctor_event";
 }

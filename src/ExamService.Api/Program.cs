@@ -8,6 +8,7 @@ using ExamService.Infrastructure.Ai;
 using ExamService.Application.Features.Sessions;
 using ExamService.Application.Features.Anomalies;
 using ExamService.Application.Features.Evidence;
+using ExamService.Application.Features.Reports;
 using ExamService.Infrastructure.Persistence;
 using ExamService.Infrastructure.Storage;
 using Hangfire;
@@ -17,8 +18,15 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
+using Serilog;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog((ctx, services, config) => config
+    .ReadFrom.Configuration(ctx.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console());
 var connection = builder.Configuration.GetConnectionString("Default")
     ?? "Host=db;Database=examservice;Username=exam;Password=exam";
 
@@ -41,10 +49,26 @@ builder.Services.AddRateLimiter(o =>
         var tenant = ctx.User?.FindFirst("tenant_id")?.Value ?? "anon";
         return RateLimitPartition.GetFixedWindowLimiter(tenant, _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = 600, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
+            PermitLimit = int.TryParse(builder.Configuration["RateLimit:PerMinute"], out var limit) ? limit : 600,
+            Window = TimeSpan.FromMinutes(1), QueueLimit = 0
         });
     });
 });
+var telemetry = builder.Services.AddOpenTelemetry()
+    .WithTracing(t =>
+    {
+        t.AddAspNetCoreInstrumentation();
+        t.AddHttpClientInstrumentation();
+        t.AddSource("Npgsql");
+    })
+    .WithMetrics(m => m.AddAspNetCoreInstrumentation().AddHttpClientInstrumentation());
+var otlp = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+if (!string.IsNullOrWhiteSpace(otlp))
+{
+    telemetry.WithTracing(t => t.AddOtlpExporter(o => o.Endpoint = new Uri(otlp)));
+    telemetry.WithMetrics(m => m.AddOtlpExporter(o => o.Endpoint = new Uri(otlp)));
+}
+
 builder.Services.AddApplication();
 builder.Services.AddControllers();
 builder.Services.AddProductJwt(builder.Configuration);
@@ -81,6 +105,7 @@ builder.Services.AddHangfire(c => c
 builder.Services.AddHangfireServer();
 
 var app = builder.Build();
+app.UseSerilogRequestLogging();
 app.UseMiddleware<ErrorMiddleware>();
 app.UseAuthentication();
 app.UseRateLimiter();
@@ -105,6 +130,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 var recurring = app.Services.GetRequiredService<IRecurringJobManager>();
+recurring.AddOrUpdate<ResultNotificationWorker>("result-notifications", w => w.DispatchAsync(), "*/1 * * * *");
 recurring.AddOrUpdate<RetentionWorker>("evidence-retention", w => w.CleanupAsync(), Cron.Daily);
 recurring.AddOrUpdate<AnomalyWorker>("detect-anomalies", w => w.DetectAllAsync(), "*/5 * * * *");
 recurring.AddOrUpdate<DeadlineWorker>("expire-attempts", w => w.ExpireAsync(), "*/1 * * * * *");

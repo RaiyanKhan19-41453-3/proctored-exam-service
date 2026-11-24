@@ -77,3 +77,14 @@ public sealed class RetentionWorker(IServiceScopeFactory scopes, ILogger<Retenti
         if (removed > 0) logger.LogInformation("Removed {Count} expired evidence records", removed);
     }
 }
+
+public sealed class ResultNotificationWorker(IServiceScopeFactory scopes, ILogger<ResultNotificationWorker> logger)
+{
+    public async Task DispatchAsync()
+    {
+        using var scope = scopes.CreateScope();
+        var sender = scope.ServiceProvider.GetRequiredService<MediatR.ISender>();
+        var sent = await sender.Send(new DispatchResultNotifications());
+        if (sent > 0) logger.LogInformation("Dispatched {Count} result notifications", sent);
+    }
+}

@@ -208,7 +208,7 @@ export default function App() {
   async function submit() {
     if (!attemptId) return;
     await fetch(`${API}/attempts/${attemptId}/submit`, { method: 'POST', headers: headers() });
-    await fetch(`${API}/reports/generate?attemptId=${attemptId}`, { method: 'POST', headers: headers() });
+    await fetch(`${API}/attempts/${attemptId}/report`, { method: 'POST', headers: headers() });
     await loadReports();
     streamRef.current?.getTracks().forEach(t => t.stop());
     setAttemptId('');

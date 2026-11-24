@@ -1,0 +1,38 @@
+name: Exam Service CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    name: Containerized tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/run-tests.sh
+
+  build:
+    name: Build images
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -t exam-api:${{ github.sha }} -f src/ExamService.Api/Dockerfile .
+      - name: Build Web image
+        run: docker build -t exam-web:${{ github.sha }} ./web
+      - name: Smoke test
+        run: |
+          docker network create exam-ci || true
+          docker run -d --name exam-ci-db --network exam-ci -e POSTGRES_PASSWORD=test -e POSTGRES_DB=examservice postgres:17-alpine
+          docker run -d --name exam-ci-api --network exam-ci -p 18090:8080 \
+            -e ConnectionStrings__Default='Host=exam-ci-db;Database=examservice;Username=postgres;Password=test' \
+            -e Minio__Endpoint=127.0.0.1:1 -e ASPNETCORE_ENVIRONMENT=Development exam-api:${{ github.sha }}
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:18090/api/health >/dev/null && echo ready && exit 0
+            sleep 2
+          done
+          docker logs exam-ci-api
+          exit 1

@@ -17,6 +17,7 @@ public sealed class GenerateReportHandler(IAppDbContext db, ITenantContext curre
 {
     public async Task<Guid> Handle(GenerateReport request, CancellationToken ct)
     {
+        await db.OwnedAsync(current, request.AttemptId, ct);
         var attempt = await db.Set<ExamAttempt>().FirstOrDefaultAsync(a => a.Id == request.AttemptId, ct)
                       ?? throw new KeyNotFoundException("Attempt not found.");
         var exam = await db.Set<Exam>().FirstOrDefaultAsync(e => e.Id == attempt.ExamId, ct)

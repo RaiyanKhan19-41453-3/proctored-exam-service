@@ -2,14 +2,15 @@ using ExamService.Application.Common;
 using MediatR;
 using ExamService.Application.DTOs;
 using Microsoft.EntityFrameworkCore;
-using ExamService.Domain.Common;
+using System.Text.Json;
 using ExamService.Domain.Entities;
+using ExamService.Domain.Common;
 
 namespace ExamService.Application.Features.Reports;
 
 public sealed record PublishResults(Guid ExamId, bool IncludeFlagged = false) : IRequest<int>, IRequiresTenant;
 
-public sealed class PublishResultsHandler(IAppDbContext db) : IRequestHandler<PublishResults, int>
+public sealed class PublishResultsHandler(IAppDbContext db, ITenantContext current) : IRequestHandler<PublishResults, int>
 {
     public async Task<int> Handle(PublishResults request, CancellationToken ct)
     {
@@ -19,8 +20,23 @@ public sealed class PublishResultsHandler(IAppDbContext db) : IRequestHandler<Pu
                                          r.Decision == ReviewDecision.Rejected).ToList();
         var now = DateTimeOffset.UtcNow;
         foreach (var report in reports) report.PublishedAt ??= now;
-        if (reports.Count > 0) await db.SaveChangesAsync(ct);
-        return reports.Count(r => r.PublishedAt == now);
+        var published = reports.Count(r => r.PublishedAt == now);
+        if (published > 0)
+        {
+            db.Set<OutboxMessage>().Add(new OutboxMessage
+            {
+                TenantId = current.TenantId, EventType = EventTypes.ResultsPublished,
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    ExamId = request.ExamId, PublishedCount = published,
+                    CandidateIds = reports.Where(r => r.PublishedAt == now)
+                        .Select(r => r.CandidateId).Distinct().ToList()
+                }),
+                OccurredAt = now
+            });
+            await db.SaveChangesAsync(ct);
+        }
+        return published;
     }
 }
 

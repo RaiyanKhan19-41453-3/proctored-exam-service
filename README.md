@@ -47,6 +47,22 @@ docker compose up -d --build
 - JWT must be issued by the main platform with the same signing key, issuer and audience.
 - Camera/mic snapshots live in MinIO under tenant-prefixed keys; audit trails are append-only.
 
+## Operations
+
+```bash
+./scripts/backup.sh                 # Postgres dump + MinIO objects -> backups/<timestamp>/
+./scripts/restore.sh backups/<ts>   # destructive restore
+RATE_LIMIT_PER_MINUTE=100000 ./scripts/load-test.mjs   # set USERS to control concurrency
+```
+
+CI (`.github/workflows/ci.yml`) runs the containerized tests, builds both images and smoke-tests
+the API. Serilog structured logs and OpenTelemetry traces/metrics are enabled; set `OTEL_ENDPOINT`
+to export them.
+
+Result publication writes `exam.results_published` to the outbox. Set `RESULT_WEBHOOK` to the main
+platform's `/api/integrations/exam-results` URL (e.g. `http://host.docker.internal:18081/api/integrations/exam-results`)
+and `EXAM_INTEGRATION_KEY` on the main platform to deliver candidate notifications.
+
 ## Tests
 
 ```bash
