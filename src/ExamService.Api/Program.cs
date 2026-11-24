@@ -32,6 +32,12 @@ builder.Services.AddRateLimiter(o =>
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
     {
+        var path = ctx.Request.Path.Value ?? string.Empty;
+        if (path.StartsWith("/health", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/scalar", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/hubs", StringComparison.OrdinalIgnoreCase))
+            return RateLimitPartition.GetNoLimiter("infrastructure");
         var tenant = ctx.User?.FindFirst("tenant_id")?.Value ?? "anon";
         return RateLimitPartition.GetFixedWindowLimiter(tenant, _ => new FixedWindowRateLimiterOptions
         {

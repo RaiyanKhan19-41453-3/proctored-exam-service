@@ -79,6 +79,8 @@ public sealed class StartAttemptHandler(IAppDbContext db, ITenantContext current
                 ShuffledOptionsJson = QuestionShuffler.ShuffleOptions(question.OptionsJson, rng)
             });
         }
+        assignment.Status = AssignmentStatus.InProgress;
+        assignment.TokenExpiresAt = now;
         db.Set<ExamAttempt>().Add(attempt);
         db.Set<OutboxMessage>().Add(new OutboxMessage
         {

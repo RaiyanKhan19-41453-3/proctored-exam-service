@@ -219,4 +219,15 @@ public class ExamFlowTests(DbFixture fixture) : ExamTestBase(fixture)
         await Sender.Send(new PublishResults(examId, true));
         Assert.NotNull((await Db.Reports.SingleAsync(r => r.Id == report.Id)).PublishedAt);
     }
+
+    [Fact]
+    public async Task AttemptToken_IsSingleUse()
+    {
+        var (examId, _, _) = await BuildExamAsync();
+        var token = await AssignAsync(examId, Guid.NewGuid());
+        var first = await Sender.Send(new StartAttempt(examId, token));
+        await Sender.Send(new SubmitAttempt(first));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            Sender.Send(new StartAttempt(examId, token)));
+    }
 }
