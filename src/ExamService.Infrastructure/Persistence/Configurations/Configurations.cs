@@ -139,5 +139,7 @@ public sealed class AnomalyFlagConfig() : TenantConfig<AnomalyFlag>("AnomalyFlag
     {
         base.Configure(b);
         b.HasIndex(e => new { e.ExamId, e.Kind });
+        b.HasIndex(e => new { e.ExamId, e.Kind, e.AttemptId, e.OtherAttemptId }).IsUnique()
+            .HasDatabaseName("IX_AnomalyFlags_Dedupe");
     }
 }

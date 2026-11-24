@@ -16,6 +16,7 @@ namespace ExamService.Api;
 /// </summary>
 public sealed class ReportWorker(IServiceScopeFactory scopes, ILogger<ReportWorker> logger)
 {
+    [DisableConcurrentExecution(timeoutInSeconds: 300)]
     public async Task GeneratePendingAsync()
     {
         using var scope = scopes.CreateScope();
@@ -41,6 +42,7 @@ public sealed class AppDbContextShim(Infrastructure.Persistence.AppDbContext con
 
 public sealed class DeadlineWorker(IServiceScopeFactory scopes, ILogger<DeadlineWorker> logger)
 {
+    [DisableConcurrentExecution(timeoutInSeconds: 300)]
     public async Task ExpireAsync()
     {
         using var scope = scopes.CreateScope();
@@ -52,6 +54,7 @@ public sealed class DeadlineWorker(IServiceScopeFactory scopes, ILogger<Deadline
 
 public sealed class AnomalyWorker(IServiceScopeFactory scopes, ILogger<AnomalyWorker> logger)
 {
+    [DisableConcurrentExecution(timeoutInSeconds: 300)]
     public async Task DetectAllAsync()
     {
         using var scope = scopes.CreateScope();
@@ -69,6 +72,7 @@ public sealed class AnomalyWorker(IServiceScopeFactory scopes, ILogger<AnomalyWo
 
 public sealed class RetentionWorker(IServiceScopeFactory scopes, ILogger<RetentionWorker> logger)
 {
+    [DisableConcurrentExecution(timeoutInSeconds: 300)]
     public async Task CleanupAsync()
     {
         using var scope = scopes.CreateScope();
@@ -80,6 +84,7 @@ public sealed class RetentionWorker(IServiceScopeFactory scopes, ILogger<Retenti
 
 public sealed class ResultNotificationWorker(IServiceScopeFactory scopes, ILogger<ResultNotificationWorker> logger)
 {
+    [DisableConcurrentExecution(timeoutInSeconds: 300)]
     public async Task DispatchAsync()
     {
         using var scope = scopes.CreateScope();

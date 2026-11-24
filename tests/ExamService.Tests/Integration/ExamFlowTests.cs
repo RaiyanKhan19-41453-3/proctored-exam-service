@@ -139,6 +139,7 @@ public class ExamFlowTests(DbFixture fixture) : ExamTestBase(fixture)
 
         var count = await Sender.Send(new DetectAnomalies(examId));
         Assert.True(count >= 2);
+        Assert.Equal(0, await Sender.Send(new DetectAnomalies(examId))); // idempotent across replicas
         var flags = await Sender.Send(new ListAnomalyFlags(examId));
         Assert.Contains(flags, f => f.Kind == FlagKind.SharedDevice);
         Assert.Contains(flags, f => f.Kind == FlagKind.AnswerSimilarity);

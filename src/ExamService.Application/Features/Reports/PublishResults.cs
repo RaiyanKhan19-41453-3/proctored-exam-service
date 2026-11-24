@@ -23,17 +23,20 @@ public sealed class PublishResultsHandler(IAppDbContext db, ITenantContext curre
         var published = reports.Count(r => r.PublishedAt == now);
         if (published > 0)
         {
-            db.Set<OutboxMessage>().Add(new OutboxMessage
+            var payload = JsonSerializer.Serialize(new
             {
-                TenantId = current.TenantId, EventType = EventTypes.ResultsPublished,
-                PayloadJson = JsonSerializer.Serialize(new
-                {
-                    ExamId = request.ExamId, PublishedCount = published,
-                    CandidateIds = reports.Where(r => r.PublishedAt == now)
-                        .Select(r => r.CandidateId).Distinct().ToList()
-                }),
-                OccurredAt = now
+                ExamId = request.ExamId, PublishedCount = published,
+                CandidateIds = reports.Where(r => r.PublishedAt == now)
+                    .Select(r => r.CandidateId).Distinct().ToList()
             });
+            var alreadyQueued = await db.Set<OutboxMessage>().AnyAsync(m =>
+                m.EventType == EventTypes.ResultsPublished && m.PayloadJson == payload, ct);
+            if (!alreadyQueued)
+                db.Set<OutboxMessage>().Add(new OutboxMessage
+                {
+                    TenantId = current.TenantId, EventType = EventTypes.ResultsPublished,
+                    PayloadJson = payload, OccurredAt = now
+                });
             await db.SaveChangesAsync(ct);
         }
         return published;

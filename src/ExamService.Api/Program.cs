@@ -21,6 +21,8 @@ using Scalar.AspNetCore;
 using Serilog;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
+using ExamService.Api.RateLimiting;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((ctx, services, config) => config
@@ -89,6 +91,14 @@ builder.Services.AddSingleton(new DbHealthCheck(connection));
 
 var signalR = builder.Services.AddSignalR();
 var signalRRedis = builder.Configuration["Redis:ConnectionString"];
+IConnectionMultiplexer? sharedRedis = null;
+if (!string.IsNullOrWhiteSpace(signalRRedis))
+{
+    var options = ConfigurationOptions.Parse(signalRRedis!);
+    options.AbortOnConnectFail = false;
+    sharedRedis = ConnectionMultiplexer.Connect(options);
+    builder.Services.AddSingleton(sharedRedis);
+}
 if (!string.IsNullOrWhiteSpace(signalRRedis))
     signalR.AddStackExchangeRedis(signalRRedis!,
         o => o.Configuration.ChannelPrefix = StackExchange.Redis.RedisChannel.Literal("exam-proctor:"));
@@ -108,6 +118,7 @@ var app = builder.Build();
 app.UseSerilogRequestLogging();
 app.UseMiddleware<ErrorMiddleware>();
 app.UseAuthentication();
+app.UseMiddleware<RedisRateLimitMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 app.UseCors("web");

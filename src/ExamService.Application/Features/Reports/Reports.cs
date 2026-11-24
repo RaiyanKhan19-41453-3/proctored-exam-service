@@ -84,7 +84,12 @@ public sealed class GenerateReportHandler(IAppDbContext db, ITenantContext curre
             ? ReviewDecision.Flagged : ReviewDecision.Approved;
         attempt.Status = AttemptStatus.Graded;
         attempt.Score = objective + subjective;
-        await db.SaveChangesAsync(ct);
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateException)
+        {
+            report = await db.Set<EvaluationReport>().FirstOrDefaultAsync(r => r.AttemptId == attempt.Id, ct)
+                     ?? throw new InvalidOperationException("Report could not be generated.");
+        }
         return report.Id;
     }
 }

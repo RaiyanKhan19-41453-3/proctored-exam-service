@@ -66,6 +66,10 @@ namespace ExamService.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ExamId", "Kind");
 
+                    b.HasIndex("ExamId", "Kind", "AttemptId", "OtherAttemptId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AnomalyFlags_Dedupe");
+
                     b.ToTable("AnomalyFlags", (string)null);
                 });
 
