@@ -63,7 +63,8 @@ public sealed class StoreEvidenceHandler(IAppDbContext db, IObjectStorage storag
             if (analysis.FaceCovered)
                 if (await AddEvent(attempt, EventType.FaceCovered, Domain.Common.Severity.Critical, "Face appears covered", evidence.Id)) newEventCount++;
         }
-        else if (kind == EvidenceKind.AudioChunk)
+        else if (kind == EvidenceKind.AudioChunk &&
+                 request.Request.ContentType is "audio/wav" or "audio/pcm" or "audio/x-wav")
         {
             var audio = await analyzer.AnalyzeAudioAsync(data, ct);
             if (audio.Anomaly)

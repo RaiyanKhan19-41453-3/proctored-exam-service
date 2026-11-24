@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace ExamService.Api;
 
-[Authorize]
+[Authorize(Roles = "Admin,Teacher,Examiner")]
 public sealed class ProctorHub : Hub
 {
     public override async Task OnConnectedAsync()

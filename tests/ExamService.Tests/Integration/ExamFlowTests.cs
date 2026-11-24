@@ -201,4 +201,22 @@ public class ExamFlowTests(DbFixture fixture) : ExamTestBase(fixture)
         var id = await Sender.Send(new StartAttempt(examId, assignment.AttemptToken));
         Assert.NotEqual(Guid.Empty, id);
     }
+
+    [Fact]
+    public async Task FlaggedReport_IsNotPublishedWithoutOverride()
+    {
+        var (examId, mcqId, _) = await BuildExamAsync();
+        var attemptId = await Sender.Send(new StartAttempt(examId, await AssignAsync(examId, Guid.NewGuid())));
+        await Sender.Send(new RecordProctorEvent(attemptId, EventType.CameraBlocked, Severity.Critical, "{}", null));
+        await Sender.Send(new SaveAnswer(attemptId, mcqId, "{\"value\":\"b\"}"));
+        await Sender.Send(new SubmitAttempt(attemptId));
+        await Sender.Send(new GenerateReport(attemptId));
+        var report = await Db.Reports.SingleAsync(r => r.AttemptId == attemptId);
+        Assert.Equal(ReviewDecision.Flagged, report.Decision);
+
+        await Sender.Send(new PublishResults(examId));
+        Assert.Null((await Db.Reports.SingleAsync(r => r.Id == report.Id)).PublishedAt);
+        await Sender.Send(new PublishResults(examId, true));
+        Assert.NotNull((await Db.Reports.SingleAsync(r => r.Id == report.Id)).PublishedAt);
+    }
 }

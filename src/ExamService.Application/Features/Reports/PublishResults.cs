@@ -2,17 +2,21 @@ using ExamService.Application.Common;
 using MediatR;
 using ExamService.Application.DTOs;
 using Microsoft.EntityFrameworkCore;
+using ExamService.Domain.Common;
 using ExamService.Domain.Entities;
 
 namespace ExamService.Application.Features.Reports;
 
-public sealed record PublishResults(Guid ExamId) : IRequest<int>, IRequiresTenant;
+public sealed record PublishResults(Guid ExamId, bool IncludeFlagged = false) : IRequest<int>, IRequiresTenant;
 
 public sealed class PublishResultsHandler(IAppDbContext db) : IRequestHandler<PublishResults, int>
 {
     public async Task<int> Handle(PublishResults request, CancellationToken ct)
     {
         var reports = await db.Set<EvaluationReport>().Where(r => r.ExamId == request.ExamId).ToListAsync(ct);
+        if (!request.IncludeFlagged)
+            reports = reports.Where(r => r.Decision == ReviewDecision.Approved ||
+                                         r.Decision == ReviewDecision.Rejected).ToList();
         var now = DateTimeOffset.UtcNow;
         foreach (var report in reports) report.PublishedAt ??= now;
         if (reports.Count > 0) await db.SaveChangesAsync(ct);

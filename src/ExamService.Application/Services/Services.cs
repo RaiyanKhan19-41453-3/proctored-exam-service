@@ -33,7 +33,7 @@ public interface IReportService
     Task<IReadOnlyList<ReportSummary>> ListAsync(Guid examId, CancellationToken ct = default);
     Task<ReportDetail?> GetAsync(Guid reportId, CancellationToken ct = default);
     Task<bool> ReviewAsync(Guid reportId, ReviewReportRequest request, CancellationToken ct = default);
-    Task<int> PublishAsync(Guid examId, CancellationToken ct = default);
+    Task<int> PublishAsync(Guid examId, bool includeFlagged = false, CancellationToken ct = default);
     Task<ResultResponse?> GetResultAsync(Guid attemptId, CancellationToken ct = default);
 }
 
@@ -94,8 +94,8 @@ public sealed class ReportService(ISender sender) : IReportService
     }
     public Task<bool> ReviewAsync(Guid reportId, ReviewReportRequest r, CancellationToken ct)
         => sender.Send(new ReviewReport(reportId, r.Decision, r.Notes, r.Reviewer), ct);
-    public Task<int> PublishAsync(Guid examId, CancellationToken ct)
-        => sender.Send(new PublishResults(examId), ct);
+    public Task<int> PublishAsync(Guid examId, bool includeFlagged, CancellationToken ct)
+        => sender.Send(new PublishResults(examId, includeFlagged), ct);
     public async Task<ResultResponse?> GetResultAsync(Guid attemptId, CancellationToken ct)
     {
         var r = await sender.Send(new GetMyResult(attemptId), ct);

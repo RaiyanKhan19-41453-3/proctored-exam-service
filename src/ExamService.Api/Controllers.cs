@@ -92,8 +92,8 @@ public sealed class ReportsController(IReportService reports) : ControllerBase
     }
 
     [HttpPost("exams/{examId:guid}/publish")]
-    public async Task<IActionResult> Publish([FromRoute] Guid examId, CancellationToken ct)
-        => Ok(new { published = await reports.PublishAsync(examId, ct) });
+    public async Task<IActionResult> Publish([FromRoute] Guid examId, [FromQuery] bool includeFlagged = false, CancellationToken ct = default)
+        => Ok(new { published = await reports.PublishAsync(examId, includeFlagged, ct) });
 
     [HttpGet("attempts/{attemptId:guid}/result")]
     [Authorize]
