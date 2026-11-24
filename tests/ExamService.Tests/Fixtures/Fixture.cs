@@ -48,6 +48,7 @@ public sealed class NoopStorage : IObjectStorage
     public Task<string> PresignDownloadAsync(string key, TimeSpan expiry, CancellationToken ct = default)
         => Task.FromResult("https://storage.test/download");
     public Task<bool> ExistsAsync(string key, CancellationToken ct = default) => Task.FromResult(true);
+    public Task RemoveAsync(string key, CancellationToken ct = default) => Task.CompletedTask;
 }
 
 [Collection("exam")]

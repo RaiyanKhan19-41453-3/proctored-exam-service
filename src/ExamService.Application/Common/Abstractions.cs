@@ -29,6 +29,7 @@ public interface IObjectStorage
     Task<string> PresignUploadAsync(string key, string contentType, TimeSpan expiry, CancellationToken ct = default);
     Task<string> PresignDownloadAsync(string key, TimeSpan expiry, CancellationToken ct = default);
     Task<bool> ExistsAsync(string key, CancellationToken ct = default);
+    Task RemoveAsync(string key, CancellationToken ct = default);
     Task EnsureBucketAsync(CancellationToken ct = default);
 }
 

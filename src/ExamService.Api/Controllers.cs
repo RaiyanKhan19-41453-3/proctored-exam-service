@@ -128,13 +128,24 @@ public sealed class CandidatesController(IIdentityService identity) : Controller
     public async Task<IActionResult> Assign([FromBody] ExamService.Application.Features.Identity.CreateAssignment request, CancellationToken ct)
         => Ok(await identity.AssignAsync(request, ct));
 
+}
+
+
+[ApiController]
+[Route("api/candidate")]
+[Authorize]
+[Produces("application/json")]
+public sealed class CandidateSelfServiceController(IIdentityService identity) : ControllerBase
+{
     [HttpPost("consent")]
+    [Authorize]
     public async Task<IActionResult> Consent([FromQuery] Guid assignmentId, [FromQuery] bool accepted,
         CancellationToken ct)
         => Ok(new { accepted = await identity.AcceptConsentAsync(assignmentId, accepted,
             HttpContext.Connection.RemoteIpAddress?.ToString(), ct) });
 
     [HttpPost("verify")]
+    [Authorize]
     public async Task<IActionResult> Verify([FromQuery] Guid assignmentId, [FromBody] byte[] selfie, CancellationToken ct)
         => Ok(await identity.VerifyAsync(assignmentId, selfie, ct));
 }

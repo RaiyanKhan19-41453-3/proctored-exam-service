@@ -36,6 +36,9 @@ public sealed class StartAttemptHandler(IAppDbContext db, ITenantContext current
             ?? throw new UnauthorizedAccessException("Invalid attempt token.");
         if (assignment.TokenExpiresAt <= DateTimeOffset.UtcNow)
             throw new UnauthorizedAccessException("Attempt token has expired.");
+        var privileged = current.Roles.Any(r => r is "Admin" or "Examiner");
+        if (!privileged && current.UserId.HasValue && assignment.CandidateId != current.UserId.Value)
+            throw new UnauthorizedAccessException("This attempt token belongs to a different candidate.");
         if (assignment.Status == AssignmentStatus.Revoked)
             throw new UnauthorizedAccessException("Assignment has been revoked.");
         if (assignment.Consent != ConsentStatus.Accepted)

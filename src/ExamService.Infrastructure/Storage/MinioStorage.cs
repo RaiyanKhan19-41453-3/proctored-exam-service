@@ -33,6 +33,9 @@ public sealed class MinioStorage : IObjectStorage
         => _signing.PresignedGetObjectAsync(new PresignedGetObjectArgs()
             .WithBucket(_bucket).WithObject(key).WithExpiry((int)expiry.TotalSeconds));
 
+    public Task RemoveAsync(string key, CancellationToken ct)
+        => _client.RemoveObjectAsync(new RemoveObjectArgs().WithBucket(_bucket).WithObject(key), ct);
+
     public async Task<bool> ExistsAsync(string key, CancellationToken ct)
     {
         try

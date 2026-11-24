@@ -24,7 +24,7 @@ public sealed class StoreEvidenceValidator : AbstractValidator<StoreEvidence>
 }
 
 public sealed class StoreEvidenceHandler(IAppDbContext db, IObjectStorage storage, ITenantContext current,
-    IEvidenceAnalyzer analyzer) : IRequestHandler<StoreEvidence, Guid>
+    IEvidenceAnalyzer analyzer, HttpClient http) : IRequestHandler<StoreEvidence, Guid>
 {
     public async Task<Guid> Handle(StoreEvidence request, CancellationToken ct)
     {
@@ -40,7 +40,6 @@ public sealed class StoreEvidenceHandler(IAppDbContext db, IObjectStorage storag
         var url = await storage.PresignUploadAsync(key, request.Request.ContentType, TimeSpan.FromMinutes(10), ct);
         using var content = new ByteArrayContent(data);
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(request.Request.ContentType);
-        using var http = new HttpClient();
         var put = await http.PutAsync(url, content, ct);
         if (!put.IsSuccessStatusCode) throw new AppException("Evidence upload failed.", 502);
 

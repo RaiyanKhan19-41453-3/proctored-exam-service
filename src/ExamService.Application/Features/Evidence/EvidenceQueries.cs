@@ -40,14 +40,19 @@ public sealed class GetEvidenceUrlHandler(IAppDbContext db, IObjectStorage stora
 
 public sealed record CleanupExpiredEvidence() : IRequest<int>;
 
-public sealed class CleanupExpiredEvidenceHandler(IAppDbContext db)
+public sealed class CleanupExpiredEvidenceHandler(IAppDbContext db, IObjectStorage storage)
     : IRequestHandler<CleanupExpiredEvidence, int>
 {
     public async Task<int> Handle(CleanupExpiredEvidence request, CancellationToken ct)
     {
         var expired = await db.Set<Domain.Entities.Evidence>().Where(e => e.ExpiresAt != null && e.ExpiresAt < DateTimeOffset.UtcNow)
             .ToListAsync(ct);
-        foreach (var item in expired) db.Set<Domain.Entities.Evidence>().Remove(item);
+        foreach (var item in expired)
+        {
+            try { await storage.RemoveAsync(item.StorageKey, ct); }
+            catch (Exception) { continue; }
+            db.Set<Domain.Entities.Evidence>().Remove(item);
+        }
         await db.SaveChangesAsync(ct);
         return expired.Count;
     }
