@@ -1,0 +1,72 @@
+name: proctored-exam-service
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-examservice}
+      POSTGRES_USER: ${POSTGRES_USER:-exam}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-exam}
+    volumes: [exam-db:/var/lib/postgresql/data]
+    ports: ["${POSTGRES_PORT:-15433}:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-exam} -d ${POSTGRES_DB:-examservice}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports: ["${REDIS_PORT:-16380}:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  storage:
+    image: pipeforge-minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-examstorage}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-devstoragepassword}
+    volumes: [exam-storage:/data]
+    ports:
+      - "${MINIO_PORT:-9010}:9000"
+      - "${MINIO_CONSOLE_PORT:-9011}:9001"
+
+  api:
+    build: { context: ., dockerfile: src/ExamService.Api/Dockerfile }
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      cache: { condition: service_healthy }
+      storage: { condition: service_started }
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Host=db;Database=${POSTGRES_DB:-examservice};Username=${POSTGRES_USER:-exam};Password=${POSTGRES_PASSWORD:-exam}"
+      Redis__ConnectionString: cache:6379
+      Minio__Endpoint: storage:9000
+      Minio__AccessKey: ${MINIO_ROOT_USER:-examstorage}
+      Minio__SecretKey: ${MINIO_ROOT_PASSWORD:-devstoragepassword}
+      Minio__Bucket: exam-recordings
+      Minio__PublicEndpoint: "http://localhost:${MINIO_PORT:-9010}"
+      Jwt__Key: ${JWT_KEY:-dev-only-signing-key-change-this-in-production-1234}
+      Cors__Origin: ${CORS_ORIGIN:-http://localhost:13010}
+      AI__Endpoint: ${AI_ENDPOINT:-}
+      AI__ApiKey: ${AI_API_KEY:-}
+      AI__Model: ${AI_MODEL:-local-heuristic}
+    ports: ["${API_PORT:-18090}:8080"]
+
+  web:
+    build: { context: ./web }
+    restart: unless-stopped
+    depends_on: [api]
+    ports: ["${WEB_PORT:-13010}:80"]
+
+volumes:
+  exam-db:
+  exam-storage:
