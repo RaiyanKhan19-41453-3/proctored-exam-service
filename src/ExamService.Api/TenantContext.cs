@@ -68,3 +68,21 @@ public sealed class ErrorMiddleware(RequestDelegate next, ILogger<ErrorMiddlewar
         return context.Response.WriteAsJsonAsync(new { status, message });
     }
 }
+
+public sealed class TenantClaimGuard(RequestDelegate next)
+{
+    public async Task InvokeAsync(HttpContext context)
+    {
+        if (context.User.Identity?.IsAuthenticated == true)
+        {
+            var raw = context.User.FindFirst("tenant_id")?.Value;
+            if (!Guid.TryParse(raw, out _))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsJsonAsync(new { status = 401, message = "Invalid tenant claim." });
+                return;
+            }
+        }
+        await next(context);
+    }
+}

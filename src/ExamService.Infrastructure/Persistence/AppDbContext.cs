@@ -29,6 +29,13 @@ public sealed class AppDbContext : DbContext, IAppDbContext
     public DbSet<AttemptContextRecord> AttemptContexts => Set<AttemptContextRecord>();
     public DbSet<AnomalyFlag> AnomalyFlags => Set<AnomalyFlag>();
 
+    public async Task<bool> ClaimAttemptTokenAsync(Guid assignmentId, DateTimeOffset now, CancellationToken ct = default)
+        => await Assignments
+            .Where(a => a.Id == assignmentId && a.TokenExpiresAt > now && a.Status != AssignmentStatus.Revoked)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(a => a.TokenExpiresAt, now)
+                .SetProperty(a => a.Status, AssignmentStatus.InProgress), ct) == 1;
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);

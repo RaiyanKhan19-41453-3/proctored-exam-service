@@ -139,6 +139,7 @@ var app = builder.Build();
 app.UseSerilogRequestLogging();
 app.UseMiddleware<ErrorMiddleware>();
 app.UseAuthentication();
+app.UseMiddleware<TenantClaimGuard>();
 app.UseMiddleware<RedisRateLimitMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();

@@ -113,7 +113,7 @@ Required env and rollback notes: [DEPLOY.md](DEPLOY.md). A one-shot migration jo
 ```bash
 ./scripts/run-tests.sh                  # 15 tests with Testcontainers
 ./scripts/load-test.mjs                 # configurable concurrent-candidate simulation
-cd ../e2e && ./run-e2e.sh               # browser + adversarial suites
+cd ../e2e && ./run-e2e.sh               # browser + four adversarial suites (fuzzing, races, IDOR)
 ```
 
 ## Limitations

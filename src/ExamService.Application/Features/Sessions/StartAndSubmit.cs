@@ -52,6 +52,9 @@ public sealed class StartAttemptHandler(IAppDbContext db, ITenantContext current
         if (exam.RequiresKiosk && request.ClientMode != ClientMode.Kiosk)
             throw new UnauthorizedAccessException("This exam requires the secure kiosk client.");
 
+        if (!await db.ClaimAttemptTokenAsync(assignment.Id, now, ct))
+            throw new UnauthorizedAccessException("Attempt token was already used or has expired.");
+
         var existing = await db.Set<ExamAttempt>().FirstOrDefaultAsync(a =>
             a.ExamId == exam.Id && a.CandidateId == assignment.CandidateId &&
             a.Status == AttemptStatus.InProgress, ct);
@@ -79,8 +82,6 @@ public sealed class StartAttemptHandler(IAppDbContext db, ITenantContext current
                 ShuffledOptionsJson = QuestionShuffler.ShuffleOptions(question.OptionsJson, rng)
             });
         }
-        assignment.Status = AssignmentStatus.InProgress;
-        assignment.TokenExpiresAt = now;
         db.Set<ExamAttempt>().Add(attempt);
         db.Set<OutboxMessage>().Add(new OutboxMessage
         {

@@ -6,6 +6,7 @@ public interface IAppDbContext
 {
     DbSet<T> Set<T>() where T : class;
     Task<int> SaveChangesAsync(CancellationToken ct = default);
+    Task<bool> ClaimAttemptTokenAsync(Guid assignmentId, DateTimeOffset now, CancellationToken ct = default);
 }
 
 public interface ITenantContext
