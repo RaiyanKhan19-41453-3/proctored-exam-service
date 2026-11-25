@@ -40,6 +40,7 @@ public sealed class ErrorMiddleware(RequestDelegate next, ILogger<ErrorMiddlewar
     public async Task InvokeAsync(HttpContext context)
     {
         try { await next(context); }
+        catch (ArgumentException ex) { await Write(context, 400, ex.Message); }
         catch (KeyNotFoundException ex) { await Write(context, 404, ex.Message); }
         catch (InvalidOperationException ex) { await Write(context, 409, ex.Message); }
         catch (UnauthorizedAccessException ex) { await Write(context, 401, ex.Message); }

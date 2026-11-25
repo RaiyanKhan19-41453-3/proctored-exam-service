@@ -29,6 +29,7 @@ public static class JwtAuthentication
                     ValidIssuer = configuration["Jwt:Issuer"] ?? "coaching-platform",
                     ValidAudience = configuration["Jwt:Audience"] ?? "coaching-web",
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+                    ClockSkew = TimeSpan.FromSeconds(30),
                     NameClaimType = "sub",
                     RoleClaimType = "role"
                 };

@@ -26,6 +26,9 @@ public sealed class CreateExamHandler(IAppDbContext db, ITenantContext current) 
 {
     public async Task<Guid> Handle(CreateExam request, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(request.Title)) throw new ArgumentException("Title is required.");
+        if (request.DurationMinutes <= 0) throw new ArgumentException("Duration must be positive.");
+        if (request.TotalMarks <= 0) throw new ArgumentException("Total marks must be positive.");
         var exam = new Exam
         {
             TenantId = current.TenantId, Title = request.Title, Description = request.Description,
@@ -65,6 +68,8 @@ public sealed class AddQuestionHandler(IAppDbContext db, ITenantContext current)
 {
     public async Task<Guid> Handle(AddQuestion request, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(request.Text)) throw new ArgumentException("Question text is required.");
+        if (request.Marks <= 0) throw new ArgumentException("Marks must be positive.");
         if (!await db.Set<Exam>().AnyAsync(e => e.Id == request.ExamId, ct))
             throw new KeyNotFoundException("Exam not found.");
         var question = new Question
