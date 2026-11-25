@@ -4,6 +4,12 @@ A **standalone microservice** for taking exams from a normal browser, with durab
 
 > Main platform: [coaching-platform](https://github.com/RaiyanKhan19-41453-3/coaching-platform) · Tests: [coaching-e2e](https://github.com/RaiyanKhan19-41453-3/coaching-e2e)
 
+## Screenshots
+
+| Candidate entry | Taking an exam | Live proctor view | API documentation |
+| --- | --- | --- | --- |
+| ![Exam entry](docs/screenshots/exam-entry.png) | ![Candidate taking an exam](docs/screenshots/exam-taking.png) | ![Live proctor dashboard](docs/screenshots/exam-proctor.png) | ![Scalar API docs](docs/screenshots/exam-api-docs.png) |
+
 ## Contents
 
 - [Quick start](#quick-start)
