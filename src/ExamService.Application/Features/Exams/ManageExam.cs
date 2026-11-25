@@ -102,3 +102,20 @@ public sealed class GetExamHandler(IAppDbContext db) : IRequestHandler<GetExam, 
             exam.RequireMicrophone, exam.LockTab, exam.DisableCopyPaste, exam.Instructions, questions);
     }
 }
+
+public sealed record GetExamPublic(Guid ExamId) : IRequest<ExamPublicDto?>;
+
+public sealed record ExamPublicDto(Guid Id, string Title, string? Instructions,
+    int DurationMinutes, bool RequireCamera, bool RequireMicrophone,
+    bool LockTab, bool DisableCopyPaste);
+
+public sealed class GetExamPublicHandler(IAppDbContext db) : IRequestHandler<GetExamPublic, ExamPublicDto?>
+{
+    public async Task<ExamPublicDto?> Handle(GetExamPublic request, CancellationToken ct)
+    {
+        var exam = await db.Set<Exam>().FirstOrDefaultAsync(e => e.Id == request.ExamId, ct);
+        return exam is null ? null : new ExamPublicDto(exam.Id, exam.Title, exam.Instructions,
+            exam.DurationMinutes, exam.RequireCamera, exam.RequireMicrophone,
+            exam.LockTab, exam.DisableCopyPaste);
+    }
+}

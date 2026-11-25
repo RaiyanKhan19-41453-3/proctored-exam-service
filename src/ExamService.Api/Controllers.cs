@@ -35,6 +35,22 @@ public sealed class ExamsController(IExamService exams) : ControllerBase
     }
 }
 
+
+[ApiController]
+[Route("api/exams")]
+[Authorize]
+[Produces("application/json")]
+public sealed class CandidateExamController(IExamService exams) : ControllerBase
+{
+    [HttpGet("{id:guid}/public")]
+    [Authorize]
+    public async Task<IActionResult> Public([FromRoute] Guid id, CancellationToken ct)
+    {
+        var exam = await exams.GetPublicAsync(id, ct);
+        return exam is null ? NotFound() : Ok(exam);
+    }
+}
+
 [ApiController]
 [Route("api/attempts")]
 [Authorize]

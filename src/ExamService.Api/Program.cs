@@ -143,6 +143,7 @@ app.UseMiddleware<RedisRateLimitMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 app.UseCors("web");
+app.MapGet("/health", () => Results.Ok(new { service = "proctored-exam-service", status = "running" }));
 app.MapControllers();
 app.MapHub<ProctorHub>("/hubs/proctor").RequireAuthorization();
 app.MapOpenApi();

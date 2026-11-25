@@ -16,6 +16,7 @@ public interface IExamService
     Task<bool> PublishAsync(Guid examId, CancellationToken ct = default);
     Task<Guid> AddQuestionAsync(Guid examId, AddQuestionRequest request, CancellationToken ct = default);
     Task<ExamResponse?> GetAsync(Guid examId, CancellationToken ct = default);
+    Task<ExamPublicDto?> GetPublicAsync(Guid examId, CancellationToken ct = default);
 }
 
 public interface IAttemptService
@@ -47,6 +48,9 @@ public sealed class ExamService(ISender sender) : IExamService
         => sender.Send(new PublishExam(examId), ct);
     public Task<Guid> AddQuestionAsync(Guid examId, AddQuestionRequest r, CancellationToken ct)
         => sender.Send(new AddQuestion(examId, r.Type, r.Text, r.OptionsJson, r.CorrectAnswerJson, r.Marks, r.Order), ct);
+    public Task<ExamPublicDto?> GetPublicAsync(Guid examId, CancellationToken ct)
+        => sender.Send(new GetExamPublic(examId), ct);
+
     public async Task<ExamResponse?> GetAsync(Guid examId, CancellationToken ct)
     {
         var e = await sender.Send(new GetExam(examId), ct);

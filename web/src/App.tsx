@@ -10,7 +10,7 @@ const SEV = { Low: 2, Medium: 3, High: 4, Critical: 5 } as const;
 
 
 type Question = { id: string; type: number; text: string; optionsJson?: string; marks: number };
-type Exam = { id: string; title: string; instructions?: string; durationMinutes: number; requireCamera: boolean; requireMicrophone: boolean; lockTab: boolean; disableCopyPaste: boolean; questions: Question[] };
+type Exam = { id: string; title: string; instructions?: string; durationMinutes: number; questions?: Question[]; requireCamera: boolean; requireMicrophone: boolean; lockTab: boolean; disableCopyPaste: boolean };
 type Report = { id: string; candidateName: string; totalScore: number | null; integrityScore: number; decision: number; violationCount: number };
 
 const API = '/api';
@@ -21,6 +21,7 @@ export default function App() {
   const [examId, setExamId] = useState('');
   const [exam, setExam] = useState<Exam | null>(null);
   const [attemptId, setAttemptId] = useState('');
+  const [attemptQuestions, setAttemptQuestions] = useState<Question[]>([]);
   const [attemptToken, setAttemptToken] = useState('');
   const [assignmentId, setAssignmentId] = useState('');
   const [candidateId] = useState(() => localStorage.getItem('exam-candidate') ?? crypto.randomUUID());
@@ -92,7 +93,7 @@ export default function App() {
   async function loadExam() {
     setError('');
     try {
-      const r = await fetch(`${API}/exams/${examId}`, { headers: headers() });
+      const r = await fetch(`${API}/exams/${examId}/public`, { headers: headers() });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const e = await r.json() as Exam;
       setExam(e);
@@ -110,6 +111,8 @@ export default function App() {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json() as { attemptId: string };
       setAttemptId(data.attemptId);
+      const qr = await fetch(`${API}/attempts/${data.attemptId}/questions`, { headers: headers() });
+      if (qr.ok) setAttemptQuestions(await qr.json() as Question[]);
 
       let stream: MediaStream | null = null;
       if (exam?.requireCamera || exam?.requireMicrophone) {
@@ -208,8 +211,12 @@ export default function App() {
   async function submit() {
     if (!attemptId) return;
     await fetch(`${API}/attempts/${attemptId}/submit`, { method: 'POST', headers: headers() });
-    await fetch(`${API}/attempts/${attemptId}/report`, { method: 'POST', headers: headers() });
-    await loadReports();
+    const generated = await fetch(`${API}/attempts/${attemptId}/report`, { method: 'POST', headers: headers() });
+    if (generated.ok) {
+      const data = await generated.json() as { reportId: string };
+      setReports([{ id: data.reportId, candidateName: 'You', totalScore: null,
+        integrityScore: 0, decision: 0, violationCount: 0 }]);
+    }
     streamRef.current?.getTracks().forEach(t => t.stop());
     setAttemptId('');
   }
@@ -248,11 +255,11 @@ export default function App() {
             <section className="card">
               <h2>{exam.title}</h2>
               <p>{exam.instructions}</p>
-              <p className="muted">{exam.durationMinutes} min · {exam.questions.length} questions · camera {exam.requireCamera ? 'on' : 'off'}</p>
+              <p className="muted">{exam.durationMinutes} min · {(exam.questions?.length ?? 0)} questions · camera {exam.requireCamera ? 'on' : 'off'}</p>
               <video ref={videoRef} autoPlay muted style={{ width: 240, borderRadius: 8 }} />
               {!attemptId ? <button onClick={begin}>Start exam</button> : <button onClick={submit}>Submit</button>}
               <p className="warn">Violations recorded: {violations} · Offline saves queued: {queued}</p>
-              {exam.questions.map((q, i) => (
+              {(attemptQuestions.length ? attemptQuestions : exam.questions ?? []).map((q, i) => (
                 <div key={q.id} className="question">
                   <strong>{i + 1}. {q.text}</strong>
                   {(() => {
