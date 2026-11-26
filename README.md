@@ -31,7 +31,7 @@ docker compose up -d --build
 
 | Service | URL | Purpose |
 | --- | --- | --- |
-| Web | http://localhost:13010 | Candidate and proctor UI |
+| Web | http://localhost:13010 | React + Mantine UI for exam management, assignments, candidate attempts, reports and live proctoring |
 | API | http://localhost:18090 | ASP.NET Core controllers |
 | OpenAPI / Scalar | http://localhost:18090/openapi/v1.json · /scalar/v1 | API contract and docs |
 | Health | http://localhost:18090/api/health | Liveness |

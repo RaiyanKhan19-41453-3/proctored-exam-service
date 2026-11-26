@@ -1,14 +1,2 @@
-:root { font-family: system-ui, sans-serif; color: #0f172a; background: #f8fafc; }
-body { margin: 0; }
-main { max-width: 780px; margin: 2rem auto; padding: 0 1.5rem; }
-.card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
-input { display: block; width: 100%; padding: .5rem; margin: .5rem 0; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; }
-button { background: #0f172a; color: white; border: 0; border-radius: 6px; padding: .5rem 1rem; margin: .25rem; cursor: pointer; }
-.question { padding: 1rem 0; border-bottom: 1px solid #e2e8f0; }
-.question label { display: block; padding: .15rem 0; }
-.report { padding: .5rem 0; border-bottom: 1px solid #e2e8f0; }
-.muted { color: #64748b; } .warn { color: #b45309; } .error { color: #b91c1c; }
-
-.badge.live { background: #bbf7d0; color: #14532d; }
-.badge.offline { background: #fecaca; color: #7f1d1d; }
-h3 { margin-top: 1rem; }
+html, body, #root { min-height: 100%; }
+body { margin: 0; background: #f8fafc; }
