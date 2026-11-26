@@ -25,6 +25,7 @@ public sealed class PublishResultsHandler(IAppDbContext db, ITenantContext curre
         {
             var payload = JsonSerializer.Serialize(new
             {
+                EventId = Guid.NewGuid(),
                 ExamId = request.ExamId, PublishedCount = published,
                 CandidateIds = reports.Where(r => r.PublishedAt == now)
                     .Select(r => r.CandidateId).Distinct().ToList()
