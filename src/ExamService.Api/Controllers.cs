@@ -18,6 +18,10 @@ public sealed class ExamsController(IExamService exams) : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateExamRequest request, CancellationToken ct)
         => Ok(new { id = await exams.CreateAsync(request, ct) });
 
+    [HttpGet]
+    public async Task<IActionResult> List(CancellationToken ct)
+        => Ok(await exams.ListAsync(ct));
+
     [HttpPost("{id:guid}/publish")]
     public async Task<IActionResult> Publish([FromRoute] Guid id, CancellationToken ct)
         => Ok(new { published = await exams.PublishAsync(id, ct) });
@@ -221,26 +225,5 @@ public sealed class ProctorController(IAnomalyService anomalies, MediatR.ISender
     {
         var events = await sender.Send(new ProctorHistory(examId), ct);
         return Ok(events);
-    }
-}
-
-public sealed record ProctorHistory(Guid ExamId) : MediatR.IRequest<IReadOnlyList<ProctorHistoryItem>>;
-
-public sealed record ProctorHistoryItem(Guid AttemptId, string CandidateName, string Type,
-    string Severity, DateTimeOffset At, string? Detail);
-
-public sealed class ProctorHistoryHandler(Infrastructure.Persistence.AppDbContext db)
-    : MediatR.IRequestHandler<ProctorHistory, IReadOnlyList<ProctorHistoryItem>>
-{
-    public async Task<IReadOnlyList<ProctorHistoryItem>> Handle(ProctorHistory request, CancellationToken ct)
-    {
-        IQueryable<ProctorHistoryItem> query =
-            from e in db.ProctorEvents
-            join a in db.Attempts on e.AttemptId equals a.Id
-            where a.ExamId == request.ExamId
-            orderby e.OccurredAt descending
-            select new ProctorHistoryItem(a.Id, a.CandidateName, e.EventType.ToString(),
-                e.Severity.ToString(), e.OccurredAt, e.DetailJson);
-        return await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(query.Take(500), ct);
     }
 }

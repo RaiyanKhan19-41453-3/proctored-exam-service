@@ -108,6 +108,18 @@ public sealed class GetExamHandler(IAppDbContext db) : IRequestHandler<GetExam, 
     }
 }
 
+public sealed record ListExams : IRequest<IReadOnlyList<ExamSummaryDto>>;
+
+public sealed record ExamSummaryDto(Guid Id, string Title, int Status, int DurationMinutes, decimal TotalMarks);
+
+public sealed class ListExamsHandler(IAppDbContext db) : IRequestHandler<ListExams, IReadOnlyList<ExamSummaryDto>>
+{
+    public async Task<IReadOnlyList<ExamSummaryDto>> Handle(ListExams request, CancellationToken ct)
+        => await db.Set<Exam>().AsNoTracking().OrderByDescending(e => e.CreatedAt)
+            .Select(e => new ExamSummaryDto(e.Id, e.Title, (int)e.Status, e.DurationMinutes, e.TotalMarks))
+            .ToListAsync(ct);
+}
+
 public sealed record GetExamPublic(Guid ExamId) : IRequest<ExamPublicDto?>;
 
 public sealed record ExamPublicDto(Guid Id, string Title, string? Instructions,

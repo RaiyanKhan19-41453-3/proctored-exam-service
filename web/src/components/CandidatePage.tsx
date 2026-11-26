@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Stack, Title, TextInput, Button, Paper, Text, Radio, Textarea, Group, Badge, Alert, Progress } from '@mantine/core';
 import { api, asArray, getToken } from '../api';
 
+const typeNames=['Single choice','Multiple choice','True / false','Short answer','Essay','Numeric','Coding'];
 export function CandidatePage(){
   const [token,setToken]=useState(getToken()),[examId,setExamId]=useState(''),[attemptToken,setAttemptToken]=useState(''),[assignmentId,setAssignmentId]=useState('');
   const [exam,setExam]=useState<any>(null),[attempt,setAttempt]=useState(''),[questions,setQuestions]=useState<any[]>([]),[answers,setAnswers]=useState<Record<string,string>>({});
@@ -51,10 +52,11 @@ export function CandidatePage(){
       <Group><Button onClick={load}>Load exam</Button>{exam&&!attempt&&<Button onClick={begin}>Start attempt</Button>}{attempt&&<Button color="green" onClick={submit}>Submit exam</Button>}</Group>
     </Stack></Paper>
     {exam&&<Paper withBorder p="md"><Group justify="space-between"><Title order={3}>{exam.title}</Title><Badge color="teal">{exam.durationMinutes} min</Badge></Group><Text c="dimmed" mb="md">{exam.instructions}</Text>
-      {questions.map((q,i)=><Paper key={q.id} withBorder p="sm" mb="sm">
-        <Text fw={600}>{i+1}. {q.text}</Text><Text size="xs" c="dimmed">{q.marks} marks · {q.type}</Text>
-        {q.type==='SingleChoice'||q.type==='MultipleChoice' ? (()=>{try{const opts=JSON.parse(q.optionsJson??'[]');return <Radio.Group value={answers[q.id]??''} onChange={v=>save(q.id,v)} mt="sm">{opts.map((o:any)=><Radio key={o.id} value={o.id} label={o.text}/>)}</Radio.Group>;}catch{return null;}})()
-        :<Textarea mt="sm" placeholder="Your answer" value={answers[q.id]??''} onChange={e=>save(q.id,e.currentTarget.value)} autosize minRows={3}/>}
+      {questions.map((q,i)=><Paper key={q.questionId ?? q.id} withBorder p="sm" mb="sm">
+        <Text fw={600}>{i+1}. {q.text}</Text><Text size="xs" c="dimmed">{q.marks} marks · {typeNames[q.type] ?? q.type}</Text>
+        {q.type===2 ? <Radio.Group value={answers[q.questionId ?? q.id]??''} onChange={v=>save(q.questionId ?? q.id,v)} mt="sm"><Radio value="true" label="True"/><Radio value="false" label="False"/></Radio.Group>
+        :q.type===0||q.type===1 ? (()=>{try{const opts=JSON.parse(q.optionsJson??'[]');return <Radio.Group value={answers[q.questionId ?? q.id]??''} onChange={v=>save(q.questionId ?? q.id,v)} mt="sm">{opts.map((o:any)=><Radio key={o.id} value={o.id} label={o.text}/>)}</Radio.Group>;}catch{return null;}})()
+        :<Textarea mt="sm" placeholder="Your answer" value={answers[q.questionId ?? q.id]??''} onChange={e=>save(q.questionId ?? q.id,e.currentTarget.value)} autosize minRows={3}/>}
       </Paper>)}
     </Paper>}
     {attempt&&<Paper withBorder p="md"><Group justify="space-between"><Title order={4}>Proctoring signals & evidence</Title><Badge color="teal" variant="light">Attempt {attempt.slice(0,8)}…</Badge></Group>

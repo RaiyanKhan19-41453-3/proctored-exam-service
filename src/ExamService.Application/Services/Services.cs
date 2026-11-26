@@ -13,6 +13,7 @@ namespace ExamService.Application.Features;
 public interface IExamService
 {
     Task<Guid> CreateAsync(CreateExamRequest request, CancellationToken ct = default);
+    Task<IReadOnlyList<ExamSummaryDto>> ListAsync(CancellationToken ct = default);
     Task<bool> PublishAsync(Guid examId, CancellationToken ct = default);
     Task<Guid> AddQuestionAsync(Guid examId, AddQuestionRequest request, CancellationToken ct = default);
     Task<ExamResponse?> GetAsync(Guid examId, CancellationToken ct = default);
@@ -40,6 +41,8 @@ public interface IReportService
 
 public sealed class ExamService(ISender sender) : IExamService
 {
+    public Task<IReadOnlyList<ExamSummaryDto>> ListAsync(CancellationToken ct)
+        => sender.Send(new ListExams(), ct);
     public Task<Guid> CreateAsync(CreateExamRequest r, CancellationToken ct)
         => sender.Send(new CreateExam(r.Title, r.Description, r.StartUtc, r.EndUtc, r.DurationMinutes,
             r.TotalMarks, r.RequireCamera, r.RequireMicrophone, r.LockTab, r.DisableCopyPaste,

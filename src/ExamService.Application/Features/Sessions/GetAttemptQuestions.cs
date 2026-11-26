@@ -8,7 +8,7 @@ namespace ExamService.Application.Features.Sessions;
 
 public sealed record GetAttemptQuestions(Guid AttemptId) : IRequest<IReadOnlyList<AttemptQuestionDto>>, IRequiresTenant;
 
-public sealed record AttemptQuestionDto(Guid QuestionId, string Text, string? OptionsJson, decimal Marks, int Order);
+public sealed record AttemptQuestionDto(Guid QuestionId, int Type, string Text, string? OptionsJson, decimal Marks, int Order);
 
 public sealed class GetAttemptQuestionsHandler(IAppDbContext db, ITenantContext current)
     : IRequestHandler<GetAttemptQuestions, IReadOnlyList<AttemptQuestionDto>>
@@ -20,7 +20,7 @@ public sealed class GetAttemptQuestionsHandler(IAppDbContext db, ITenantContext 
                   join q in db.Set<Question>() on link.QuestionId equals q.Id
                   where link.AttemptId == request.AttemptId
                   orderby link.Order
-                  select new AttemptQuestionDto(q.Id, q.Text,
+                  select new AttemptQuestionDto(q.Id, (int)q.Type, q.Text,
                       link.ShuffledOptionsJson ?? q.OptionsJson, q.Marks, link.Order)).ToListAsync(ct);
     }
 }
